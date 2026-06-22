@@ -1,0 +1,35 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Canonical production host.
+    RewriteCond %{HTTP_HOST} !(localhost|127\.0\.0\.1)(:\d+)?$ [NC]
+    RewriteCond %{HTTP_HOST} ^www\.ojmaspublish\.online$ [NC]
+    RewriteRule ^ https://ojmaspublish.online%{REQUEST_URI} [L,R=301,NE]
+
+    # Force HTTPS unless the proxy already terminated SSL upstream.
+    RewriteCond %{HTTP_HOST} !(localhost|127\.0\.0\.1)(:\d+)?$ [NC]
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
+    RewriteRule ^ https://ojmaspublish.online%{REQUEST_URI} [L,R=301,NE]
+
+    # Never expose framework internals or environment files.
+    RewriteRule ^(\.env|artisan|composer\.(json|lock)|package(-lock)?\.json|vite\.config\..*)$ - [F,L,NC]
+    RewriteRule ^(app|bootstrap|config|database|resources|routes|storage|tests|vendor)(/|$) - [F,L,NC]
+
+    # Remove /public from externally visible URLs.
+    RewriteCond %{HTTP_HOST} !(localhost|127\.0\.0\.1)(:\d+)?$ [NC]
+    RewriteRule ^public/(.*)$ https://ojmaspublish.online/$1 [L,R=301,NE]
+
+    # If the requested asset exists in public/, serve it directly.
+    RewriteCond %{DOCUMENT_ROOT}/public%{REQUEST_URI} -f [OR]
+    RewriteCond %{DOCUMENT_ROOT}/public%{REQUEST_URI} -d
+    RewriteRule ^ public%{REQUEST_URI} [L]
+
+    # Otherwise send everything through Laravel's public front controller.
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^ public/index.php [L]
+</IfModule>
+
+<IfModule !mod_rewrite.c>
+    RedirectMatch 302 ^/$ /public/
+</IfModule>
