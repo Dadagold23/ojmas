@@ -26,33 +26,36 @@ class PublicationController extends Controller
 
     public function create()
     {
-        $submissions = Submission::with('author')
-            ->whereIn('status', ['accepted', 'screening'])
-            ->whereHas('payments', fn ($query) => $query->where('purpose', 'publication_fee')->where('status', 'paid'))
-            ->whereDoesntHave('article', fn($q) => $q->where('status', 'published'))
-            ->latest()
-            ->get();
+        $issues   = Issue::with('volume')->latest()->get();
+        $authors  = \App\Models\User::orderBy('name')->get();
 
-        $issues = Issue::with('volume')->latest()->get();
-
-        return view('admin.publications.create', compact('submissions', 'issues'));
+        return view('admin.publications.create', compact('issues', 'authors'));
     }
 
     public function store(Request $request, PublicationService $service)
     {
         $validated = $request->validate([
-            'submission_id' => ['required', 'exists:submissions,id'],
+            'title'         => ['required', 'string', 'max:500'],
+            'author_id'     => ['required', 'exists:users,id'],
+            'abstract'      => ['required', 'string'],
+            'keywords'      => ['nullable', 'string', 'max:500'],
+            'subject_area'  => ['nullable', 'string', 'max:255'],
             'issue_id'      => ['required', 'exists:issues,id'],
             'published_pdf' => ['required', 'file', 'mimes:pdf', 'max:20480'],
             'note'          => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $submission = Submission::findOrFail($validated['submission_id']);
-        abort_unless(in_array($submission->status, ['accepted', 'screening']), 422, 'Only accepted submissions can be published.');
-        abort_unless($submission->hasPaidPublicationFee(), 422, 'Publication fee must be paid before an article can be published.');
-
-        // Also show screening submissions in create dropdown
-    
+        $submission = Submission::create([
+            'submission_no'           => 'PUB-' . strtoupper(\Illuminate\Support\Str::random(8)),
+            'author_id'               => $validated['author_id'],
+            'title'                   => $validated['title'],
+            'slug'                    => \Illuminate\Support\Str::slug($validated['title']) . '-' . strtolower(\Illuminate\Support\Str::random(5)),
+            'abstract'                => $validated['abstract'],
+            'keywords'                => $validated['keywords'] ?? null,
+            'subject_area'            => $validated['subject_area'] ?? null,
+            'status'                  => 'published',
+            'is_corresponding_author' => true,
+        ]);
 
         $pdfPath = $request->file('published_pdf')
             ->store('published/articles', 'public');
@@ -64,19 +67,16 @@ class PublicationController extends Controller
             $validated['note'] ?? null
         );
 
-        // Notify author
-        $submission->author->notify(new ArticlePublishedNotification($article));
-
-        // Notify co-authors
-        foreach ($submission->coAuthors as $coAuthor) {
-            if ($coAuthor->email) {
-                Notification::route('mail', $coAuthor->email)
-                    ->notify(new ArticlePublishedNotification($article));
+        // Notify the author if requested
+        if ($request->boolean('notify_author')) {
+            $author = \App\Models\User::find($validated['author_id']);
+            if ($author) {
+                $author->notify(new ArticlePublishedNotification($article));
             }
         }
 
         return redirect()->route('admin.publications.index')
-            ->with('success', 'Article published and author notified successfully.');
+            ->with('success', 'Article published successfully' . ($request->boolean('notify_author') ? ' and author notified.' : '.'));
     }
 
     public function show(ArticlePublication $publication)
