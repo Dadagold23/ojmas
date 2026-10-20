@@ -228,10 +228,20 @@ user-facing documentation.
 
 ### Content Security Policy
 
-The existing CSP (see the root `.htaccess` and `SecurityHeadersMiddleware`) has
-no `default-src` or `script-src` directive. Module 2 adds a ~404 kB JavaScript
-bundle but does not change the policy. **A deliberate, tested CSP should be
-defined before the workspace is enabled in production.**
+**Resolved in the post-Module-5 amendments:** the CSP now defines
+`default-src 'self'`, `script-src`, `style-src`, `font-src`, `img-src`,
+`connect-src`, and `frame-src` (pinned by
+`tests/Feature/Integration/CspHeaderTest.php`). It permits exactly the hosts
+the Blade templates actually reference (`cdn.jsdelivr.net`, `unpkg.com`,
+`fonts.bunny.net`) and `'unsafe-inline'` where the legacy templates rely on
+it (10 inline `<script>` blocks, 15 inline handlers, 84 inline style
+attributes — documented in the middleware; removing those is the next
+tightening step, not silently blocking pages). Under `APP_ENV=local` the
+policy is relaxed for the Vite dev server; production gets the strict
+policy. The development environment is relaxed for `npm run dev`.
+
+Visual verification of the CSP on production remains a go-live step (the
+header is tested; browser rendering of all pages is a human check).
 
 ## Editorial Workflow and Role Permissions (Module 3)
 
@@ -460,12 +470,15 @@ In addition to the pre-existing checks above, verify after deployment:
   produced manually (or a toolchain approved later — earlier decision).
 - **Sequential editing, not real-time collaboration.** Do not market the
   workspace as collaborative.
-- **CSP finding S6 open:** the CSP still has no `default-src`/`script-src`.
-  The Tiptap bundle is self-hosted, but a deliberate, tested policy should be
-  added before or shortly after go-live.
-- **Admin download substitute (S4), dead 2FA middleware (S12), Tailwind
-  v3/v4 config mismatch**: tracked in `docs/MODULE_0_AUDIT.md`; none block
-  launch, none were silently "fixed".
+- CSP `default-src`/`script-src` **added after Module 5** (S6 resolved): the
+  policy permits the CDNs the templates reference and `'unsafe-inline'` where
+  legacy templates need it; tighten inline scripts later. Visual CSP check
+  on production is part of go-live.
+- Admin download substitute (S4) **fixed after Module 5** — mismatched
+  file/submission pairs now 404 (test-pinned). Dead 2FA middleware
+  (audit IDs **B4/S8**) **removed after Module 5**.
+- Tailwind v3/v4 config mismatch: tracked in `docs/MODULE_0_AUDIT.md`; none
+  block launch.
 
 ## Rollback Notes
 

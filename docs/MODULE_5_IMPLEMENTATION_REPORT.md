@@ -245,3 +245,76 @@ Awaiting your approval of Module 5, plus a decision on the two items
 flagged in §9 (journal-photo deletions intentional?) and §8 (S4 fix, S12
 removal — both need your explicit authorisation since they change or remove
 production behaviour).
+
+---
+
+# Post-approval amendments (2026-10-20, user authorised)
+
+You approved Module 5 and authorised all three follow-up actions. Results:
+
+## A. Working-tree deletions — restored
+
+The four `public/images/journal/` photographs and `public/.user.ini` were
+restored from git (`git restore`). `public/.user.ini` matters for deployment:
+it carries the PHP upload limits (`upload_max_filesize` etc.) documented in
+the Module 0 audit (H.1) for hosts pointing Apache at the project root.
+
+## B. S4 — admin download substitution fixed
+
+`EditorialController::downloadFile()` (used by both the admin and editor
+file routes): any file id that does not belong to the submission in the URL
+now returns **404**. The old fallback that silently served a *different*
+manuscript file is deleted. Pinned by
+`tests/Feature/Editorial/AdminDownloadGuardTest.php` (3 tests: matched
+download serves the exact bytes; cross-submission swap 404s in both
+directions; missing private path 404s).
+
+## C. B4/S8 — dead 2FA middleware removed
+
+`app/Http/Middleware/EnsureTwoFactorEnabled.php` deleted. It was referenced
+nowhere else (verified by grep across `app/`, `resources/`, `routes/`,
+`config/`, `bootstrap/`) and was never registered, so removal changes no
+(runtime) behaviour — it only removes misleading code that referenced a
+column that does not exist. *Correction to earlier labelling: this finding
+is B4/S8 in the Module 0 audit; the Module 3 report used "S12", which is
+actually the download-rate-limiting finding (now correctly listed as still
+open in the audit appendix).*
+
+## D. S6 — CSP defined and test-pinned
+
+`SecurityHeadersMiddleware` now sets an explicit policy:
+`default-src 'self'`, plus `script-src`, `style-src`, `font-src`, `img-src`,
+`connect-src`, and `frame-src 'self'` (the article page embeds its own PDF
+in a same-origin iframe — caught and allowed). The policy permits exactly
+the hosts the Blade templates actually reference
+(`cdn.jsdelivr.net`, `unpkg.com`, `fonts.bunny.net`) and must keep
+`'unsafe-inline'` until the 10 inline scripts / 15 inline handlers / 84
+inline styles in legacy templates are migrated — this is documented in the
+middleware rather than hidden. `APP_ENV=local` gets a relaxed variant for
+the Vite dev server; production gets the strict policy. Pinned by
+`tests/Feature/Integration/CspHeaderTest.php`. **Browser-rendering
+verification on production remains a go-live step.**
+
+## E. Suite and bookkeeping after the amendments
+
+```
+php artisan test
+  Tests:    289 passed (1260 assertions)
+```
+
+(285 + 4 new tests: 3 S4 guard tests, 1 CSP test.) All documentation aligned
+(`DEPLOYMENT.md`, `docs/MODULE_0_AUDIT.md` appendix resolution log).
+Changes committed after the Module 5 implementation commit: see the git log
+entry following `a192a3c`.
+
+## F. Updated open-items list (the honest remainder)
+
+1. **S12** — rate limiting on manuscript download endpoints (still open;
+   would need your authorisation like S4 did).
+2. **S9** — queue worker on production must be confirmed running.
+3. **S10** — `SESSION_ENCRYPT=true` verified on production.
+4. The five human go-live checks in `docs/MANUAL_ACCEPTANCE.md`.
+5. Production database credentials (twice wrong historically, per the audit
+   H.1) must be correct on deploy.
+6. `audit_logs` remains an unused legacy table (B7 remainder).
+7. Tailwind v3/v4 config mismatch (cosmetic, documented).

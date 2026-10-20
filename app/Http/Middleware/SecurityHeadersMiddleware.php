@@ -8,6 +8,36 @@ use Symfony\Component\HttpFoundation\Response;
 
 class SecurityHeadersMiddleware
 {
+    /**
+     * External hosts the app actually references from Blade templates
+     * (checked 2026-10-20): cdn.jsdelivr.net and unpkg.com (Bootstrap,
+     * Bootstrap Icons, AOS) and fonts.bunny.net (Breeze font).
+     *
+     * 'unsafe-inline' is present in script-src and style-src because the
+     * Blade templates ship 10 inline <script> blocks, 15 inline event
+     * handlers and 84 inline style attributes. Removing those is the
+     * next tightening step; until then the policy is explicit about
+     * what remains unrestricted rather than silently breaking pages.
+     */
+    private const POLICY = "default-src 'self'; ".
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; ".
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://fonts.bunny.net; ".
+        "font-src 'self' https://cdn.jsdelivr.net https://fonts.bunny.net; ".
+        "img-src 'self' data:; ".
+        "connect-src 'self'; ".
+        "base-uri 'self'; frame-ancestors 'self'; frame-src 'self'; form-action 'self' https://checkout.paystack.com; ".
+        "object-src 'none'; upgrade-insecure-requests";
+
+    /** Relaxed for `npm run dev` (Vite dev server, port 5173, HMR websockets). */
+    private const LOCAL_POLICY = "default-src 'self'; ".
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com http://localhost:5173; ".
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://fonts.bunny.net; ".
+        "font-src 'self' https://cdn.jsdelivr.net https://fonts.bunny.net; ".
+        "img-src 'self' data: blob:; ".
+        "connect-src 'self' http://localhost:5173 ws://localhost:5173; ".
+        "base-uri 'self'; frame-ancestors 'self'; frame-src 'self'; form-action 'self' https://checkout.paystack.com; ".
+        "object-src 'none'; upgrade-insecure-requests";
+
     public function handle(Request $request, Closure $next): Response
     {
         $response = $next($request);
@@ -22,7 +52,7 @@ class SecurityHeadersMiddleware
         $response->headers->set('Origin-Agent-Cluster', '?1');
         $response->headers->set(
             'Content-Security-Policy',
-            "base-uri 'self'; frame-ancestors 'self'; form-action 'self' https://checkout.paystack.com; object-src 'none'; upgrade-insecure-requests"
+            app()->environment('local') ? self::LOCAL_POLICY : self::POLICY
         );
 
         if ($request->isSecure()) {

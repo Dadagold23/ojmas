@@ -183,31 +183,14 @@ public function publish(Request $request, Submission $submission, PublicationSer
 
     public function downloadFile(Submission $submission, ArticleFile $file)
     {
-        $isAdminRoute = request()->routeIs('admin.*');
+        // Audit fix S4: a file id that does not belong to the submission in
+        // the URL is a bad request, not something to silently substitute.
+        // The old admin fallback served a *different* file than the one
+        // requested, which made downloads non-deterministic and logged the
+        // wrong identity. Always 404 on mismatch.
+        abort_unless((int) $file->submission_id === (int) $submission->id, 404);
 
-        if ((int) $file->submission_id !== (int) $submission->id && !$isAdminRoute) {
-            abort(404);
-        }
-
-        $resolvedPath = ((int) $file->submission_id === (int) $submission->id)
-            ? $file->resolvedPrivatePath()
-            : null;
-
-        if (!$resolvedPath && $isAdminRoute) {
-            $fallbackFile = $submission->files()
-                ->get()
-                ->sortBy(function (ArticleFile $candidate) {
-                    return $candidate->file_type === 'manuscript' ? 0 : 1;
-                })
-                ->first(function (ArticleFile $candidate) {
-                    return $candidate->resolvedPrivatePath() !== null;
-                });
-
-            if ($fallbackFile) {
-                $file = $fallbackFile;
-                $resolvedPath = $fallbackFile->resolvedPrivatePath();
-            }
-        }
+        $resolvedPath = $file->resolvedPrivatePath();
 
         abort_unless($resolvedPath, 404);
 

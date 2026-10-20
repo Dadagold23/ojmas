@@ -666,3 +666,43 @@ All currently installed production packages are MIT-compatible: `laravel/framewo
 ---
 
 # Module 0 audit is complete. Do you approve this architecture and authorize implementation of Module 1: Manuscript Ingestion and APA 7 Formatting Engine?
+
+---
+
+# APPENDIX — Findings resolution log (2026-10-20, post-Module 5)
+
+Status of the audit findings after all modules. This appendix changes nothing
+above; it records what became of each finding.
+
+| ID | Resolution |
+|---|---|
+| B1 | Fixed (Module 3 era): reviewer reports are written against the assignment schema via `ReviewService`. |
+| B2 | Closed (Module 3): editorial/reviewer workspaces render report text. |
+| B3–B6 | Fixed during Modules 0–4 (report texts now surfaced; reviewer access is assignment-scoped; policy inverted). |
+| B7/S5 | Largely addressed by new trail layers: `manuscript_access_logs` (Modules 1–2) and `manuscript_workflow_events` (Module 3). The legacy empty `audit_logs` table still exists and is still never written — harmless, and a candidate for removal if you want it gone. |
+| B8 | Documented risk; `MANUSCRIPT_DISK` pinned to `private` in `DEPLOYMENT.md`. Underlying dual-root config otherwise untouched. |
+| B9 | Resolved by Modules 1–2: `sha256` columns + byte-preservation verified in the integration test. |
+| B10 | Honoured as a constraint: the permission layer lives *on top of* the legacy role shim. |
+| B11 | JournalSetting remains unused (unchanged). |
+| B12–B13 | Resolved by the additive stage layer (Module 3) and revision rounds/versions (Modules 2–4). ENUM untouched. |
+| B14 | Resolved by Module 3 (`PermissionCatalog` + `PermissionRegistrar`, 58 permissions, idempotent seeder). |
+| B15/**S4** | **Fixed 2026-10-20 (post-Module 5, user-authorised):** `EditorialController::downloadFile()` now 404s on any submission/file mismatch; the silent-substitution fallback is gone. Pinned by `AdminDownloadGuardTest` (3 tests). |
+| B16 | Retained as documented historical-recovery behaviour (deterministic for well-formed paths). |
+| S1–S3 | Resolved by Module 3 (assignment-scoped access, blinded copies, neutral filenames + manifest). |
+| S6 | **Fixed 2026-10-20 (post-Module 5, user-authorised):** explicit CSP with `default-src 'self'`, `script-src`, `style-src`, `font-src`, `img-src`, `connect-src`, `frame-src 'self'`; permits only the CDNs the templates actually load and `'unsafe-inline'` where legacy templates require it (10 inline scripts / 15 inline handlers / 84 inline styles documented in the middleware); dev-relaxed variant for the Vite dev server. Pinned by `CspHeaderTest`. Visual check on production remains a go-live step. |
+| S7 | Resolved by Module 1 (`DocxSecurityValidator`: magic bytes, zip ceilings, macro rejection, traversal checks). |
+| S8/B4 | **Fixed 2026-10-20 (post-Module 5, user-authorised):** the dead `EnsureTwoFactorEnabled` middleware was deleted (referenced nowhere; never registered). *Note: some later module reports used "S12" for this finding; the correct audit IDs are B4/S8 — the number mislabel originated in the Module 3 report.* |
+| S9 | Documented in `DEPLOYMENT.md` (systemd unit + verification gate); still **needs production confirmation** — inherently unverifiable from here. |
+| S10 | On the go-live checklist (`SESSION_ENCRYPT=true` on production). |
+| S11 | Closed: the suite runs migrations and passes (289 tests, 2026-10-20). |
+| **S12** | **Still open:** no rate limiting on manuscript download endpoints. Suggested: `throttle` middleware on the file routes — needs your authorisation like S4 did. |
+| S13 | Honoured (convention enforced in review/comment rendering). |
+
+Also superseded: **H.3** claimed `phpoffice/phpword` is MIT — the correct
+licence is **LGPL-3.0-only** (see `docs/DEPENDENCIES.md`); the audit's MIT
+claim was inaccurate. The licence analysis (dynamic linking, no obligation
+transfer) still holds.
+
+The `public/images/journal` photographs and `public/.user.ini` that had been
+deleted from the working tree were restored from git on 2026-10-20 with your
+approval.
