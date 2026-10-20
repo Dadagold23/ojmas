@@ -736,6 +736,79 @@ class WorkspaceTest extends TestCase
         $this->assertStringContainsString('<w:document', $xml);
     }
 
+    public function test_workspace_export_defaults_are_apa_compliant(): void
+    {
+        [$submission, $workspace] = $this->workspaceFor();
+        $editor = $this->user('Editor');
+
+        $this->actingAs($editor)->post(route('workspace.save', $submission), [
+            'content' => $this->tiptapDoc('A paragraph nobody styled explicitly.'),
+            'baseRevision' => $workspace->revision,
+        ]);
+
+        $response = $this->actingAs($editor)->get(route('workspace.export', $submission));
+        $xml = $this->documentXml($this->exportedPath($response));
+
+        // APA 7: double spacing throughout (480 twips), flush-left paragraphs.
+        $this->assertStringContainsString('<w:spacing w:line="480" w:lineRule="auto"/>', $xml);
+        $this->assertStringContainsString('<w:jc w:val="left"/>', $xml);
+
+        // One-inch margins and the profile typeface land in the section and style parts.
+        $zip = new \ZipArchive();
+        $zip->open($this->exportedPath($response), \ZipArchive::RDONLY);
+        $styles = (string) $zip->getFromName('word/styles.xml');
+        $zip->close();
+
+        $this->assertStringContainsString('Times New Roman', $styles);
+        $this->assertStringContainsString('w:sz w:val="24"', $styles);
+    }
+
+    public function test_office_suite_formatting_chosen_in_the_workspace_is_carried_into_the_export(): void
+    {
+        [$submission, $workspace] = $this->workspaceFor();
+        $editor = $this->user('Editor');
+
+        $this->actingAs($editor)->post(route('workspace.save', $submission), [
+            'content' => [
+                'type' => 'doc',
+                'content' => [
+                    [
+                        'type' => 'paragraph',
+                        'attrs' => ['textAlign' => 'center', 'lineSpacing' => 1.5],
+                        'content' => [[
+                            'type' => 'text',
+                            'text' => 'A deliberately styled paragraph.',
+                            'marks' => [[
+                                'type' => 'textStyle',
+                                'attrs' => ['fontFamily' => 'Arial', 'fontSize' => '14pt'],
+                            ]],
+                        ]],
+                    ],
+                    [
+                        'type' => 'paragraph',
+                        'attrs' => ['lineSpacing' => 1],
+                        'content' => [['type' => 'text', 'text' => 'Single-spaced paragraph.']],
+                    ],
+                ],
+            ],
+            'baseRevision' => $workspace->revision,
+        ]);
+
+        $response = $this->actingAs($editor)->get(route('workspace.export', $submission));
+        $xml = $this->documentXml($this->exportedPath($response));
+
+        // Alignment chosen in the editor…
+        $this->assertStringContainsString('<w:jc w:val="center"/>', $xml);
+
+        // …1.5 and 1.0 line spacing (1.5 × 240 = 360, 1.0 × 240 = 240)….
+        $this->assertStringContainsString('<w:spacing w:line="360" w:lineRule="auto"/>', $xml);
+        $this->assertStringContainsString('<w:spacing w:line="240" w:lineRule="auto"/>', $xml);
+
+        // …and the typography as real run properties.
+        $this->assertStringContainsString('w:rFonts w:ascii="Arial"', $xml);
+        $this->assertStringContainsString('<w:sz w:val="28"/>', $xml); // 14 pt × 2
+    }
+
     public function test_comments_are_exported_as_a_visible_discussion(): void
     {
         [$submission, , , $author] = $this->workspaceFor();

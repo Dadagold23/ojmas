@@ -9,11 +9,16 @@ import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import CharacterCount from '@tiptap/extension-character-count'
+import TextAlign from '@tiptap/extension-text-align'
+import FontFamily from '@tiptap/extension-text-style/font-family'
+import FontSize from '@tiptap/extension-text-style/font-size'
+import { TextStyle } from '@tiptap/extension-text-style/text-style'
 
 import {
   TrackedInsertion,
   TrackedDeletion,
   CommentAnchor,
+  LineSpacing,
 } from './extensions'
 import { AutosaveController } from './autosave'
 
@@ -86,6 +91,13 @@ const editor = new Editor({
     TrackedInsertion,
     TrackedDeletion,
     CommentAnchor,
+    TextStyle,
+    FontFamily,
+    FontSize,
+    LineSpacing,
+    TextAlign.configure({
+      types: ['paragraph', 'heading', 'blockquote'],
+    }),
   ],
   content: { type: 'doc', content: [] },
   editable: false,
@@ -599,6 +611,30 @@ document.addEventListener('DOMContentLoaded', () => {
   el('btn-italic')?.addEventListener('click', () => editor.chain().focus().toggleItalic().run())
   el('btn-undo')?.addEventListener('click', () => editor.chain().focus().undo().run())
   el('btn-redo')?.addEventListener('click', () => editor.chain().focus().redo().run())
+
+  // ── Office-suite paragraph & typography controls ──
+  el('btn-align-left')?.addEventListener('click', () => editor.chain().focus().setTextAlign('left').run())
+  el('btn-align-center')?.addEventListener('click', () => editor.chain().focus().setTextAlign('center').run())
+  el('btn-align-right')?.addEventListener('click', () => editor.chain().focus().setTextAlign('right').run())
+  el('btn-align-justify')?.addEventListener('click', () => editor.chain().focus().setTextAlign('justify').run())
+
+  el('sel-font-family')?.addEventListener('change', event => {
+    const value = event.target.value
+    if (value) editor.chain().focus().setFontFamily(value).run()
+    else editor.chain().focus().unsetFontFamily().run()
+  })
+
+  el('sel-font-size')?.addEventListener('change', event => {
+    const value = event.target.value
+    if (value) editor.chain().focus().setFontSize(value).run()
+    else editor.chain().focus().unsetFontSize().run()
+  })
+
+  el('sel-line-spacing')?.addEventListener('change', event => {
+    const value = event.target.value
+    if (value) editor.chain().focus().setLineSpacing(value).run()
+    else editor.chain().focus().unsetLineSpacing().run()
+  })
 
   for (let level = 1; level <= 3; level++) {
     el(`btn-h${level}`)?.addEventListener('click', () => {

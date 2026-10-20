@@ -11,7 +11,7 @@
  * render that state and let the editor address it.
  */
 
-import { Mark, mergeAttributes } from '@tiptap/core'
+import { Extension, Mark, mergeAttributes } from '@tiptap/core'
 
 /** A pending insertion: underlined and coloured, click to select. */
 const TrackedInsertion = Mark.create({
@@ -146,3 +146,70 @@ const WorkspacePlaceholder = Mark.create({
 })
 
 export { TrackedInsertion, TrackedDeletion, CommentAnchor, WorkspacePlaceholder }
+
+/**
+ * Paragraph-level line spacing (an office-suite essential).
+ *
+ * APA 7 defaults are double-spacing everywhere, which is what the editor CSS
+ * and the DOCX export fall back to; an explicit `lineSpacing` value on a
+ * paragraph is an intentional override that the DOCX exporter honours
+ * (value × 240 twips per line, line-rule auto). The value is stored on the
+ * node, so it survives save/load round-trips, snapshots and restores.
+ */
+const LineSpacing = Extension.create({
+  name: 'lineSpacing',
+
+  addGlobalAttributes () {
+    return [{
+      types: ['paragraph', 'heading', 'blockquote'],
+      attributes: {
+        lineSpacing: {
+          default: null,
+          parseHTML: element => element.getAttribute('data-line-spacing'),
+          renderHTML: attributes => attributes.lineSpacing
+            ? {
+                'data-line-spacing': String(attributes.lineSpacing),
+                style: `line-height: ${attributes.lineSpacing}`,
+              }
+            : {},
+        },
+      },
+    }]
+  },
+
+  addCommands () {
+    const paragraphTypes = new Set(['paragraph', 'heading', 'blockquote'])
+
+    /** Applies to the paragraphs in the selection, or the paragraph holding the caret. */
+    const applyToSelection = (state, tr, value) => {
+      const { from, to, empty } = state.selection
+      const start = empty ? Math.max(from - 1, 0) : from
+      const end = empty ? from + 1 : to
+
+      state.doc.nodesBetween(start, end, (node, pos) => {
+        if (paragraphTypes.has(node.type.name) && node.attrs.lineSpacing !== value) {
+          tr.setNodeMarkup(pos, null, { ...node.attrs, lineSpacing: value })
+        }
+      })
+    }
+
+    return {
+      setLineSpacing: value => ({ state, tr, dispatch }) => {
+        if (!dispatch) return true
+
+        applyToSelection(state, tr, value)
+
+        return true
+      },
+      unsetLineSpacing: () => ({ state, tr, dispatch }) => {
+        if (!dispatch) return true
+
+        applyToSelection(state, tr, null)
+
+        return true
+      },
+    }
+  },
+})
+
+export { LineSpacing }

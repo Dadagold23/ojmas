@@ -210,11 +210,15 @@ class WorkspaceDocxExporter
     private function renderBlock(ManuscriptWorkspaceDocument $workspace, array $block): string
     {
         $type = (string) ($block['type'] ?? 'paragraph');
+        $attrs = (array) ($block['attrs'] ?? []);
+
+        $spacing = $this->spacingProperty($attrs);
+        $alignment = $this->alignmentProperty($attrs, 'left');
 
         if ($type === 'heading') {
-            $level = (int) ($block['attrs']['level'] ?? 1);
+            $level = (int) ($attrs['level'] ?? 1);
             $xml = '<w:p><w:pPr><w:pStyle w:val="Heading'.max(1, min(6, $level)).'"/>'
-                .'<w:spacing w:line="480" w:lineRule="auto"/><w:ind w:firstLine="0"/></w:pPr>'
+                .$spacing.'<w:ind w:firstLine="0"/>'.$alignment.'</w:pPr>'
                 .$this->inline($block)
                 .'</w:p>';
 
@@ -222,15 +226,15 @@ class WorkspaceDocxExporter
         }
 
         if ($type === 'blockquote') {
-            return '<w:p><w:pPr><w:spacing w:line="480" w:lineRule="auto"/>'
-                .'<w:ind w:left="720" w:firstLine="0"/></w:pPr>'
+            return '<w:p><w:pPr>'.$spacing
+                .'<w:ind w:left="720" w:firstLine="0"/>'.$alignment.'</w:pPr>'
                 .$this->inline($block)
                 .'</w:p>';
         }
 
         if ($type === 'bulletList' || $type === 'orderedList') {
-            $xml = '<w:p><w:pPr><w:spacing w:line="480" w:lineRule="auto"/>'
-                .'<w:ind w:left="720" w:hanging="360"/></w:pPr>'
+            $xml = '<w:p><w:pPr>'.$spacing
+                .'<w:ind w:left="720" w:hanging="360"/>'.$alignment.'</w:pPr>'
                 .'<w:r><w:t xml:space="preserve">• </w:t></w:r>'
                 .$this->inline($block)
                 .'</w:p>';
@@ -238,9 +242,47 @@ class WorkspaceDocxExporter
             return $xml;
         }
 
-        return '<w:p><w:pPr><w:spacing w:line="480" w:lineRule="auto"/><w:ind w:firstLine="720"/></w:pPr>'
+        return '<w:p><w:pPr>'.$spacing.'<w:ind w:firstLine="720"/>'.$alignment.'</w:pPr>'
             .$this->inline($block)
             .'</w:p>';
+    }
+
+    /**
+     * Line spacing into OOXML.
+     *
+     * Default is **double** (w:line="480", line-rule auto) — APA 7 requires
+     * double spacing throughout, so the editor's untouched paragraphs comply
+     * without anyone having to pick a setting. A `lineSpacing` attribute set
+     * in the workspace is an explicit editorial decision and overrides it.
+     */
+    private function spacingProperty(array $attrs): string
+    {
+        $value = $attrs['lineSpacing'] ?? null;
+
+        if (is_numeric($value) && (float) $value > 0) {
+            $twips = (string) max(120, (int) round(((float) $value) * 240));
+
+            return '<w:spacing w:line="'.$twips.'" w:lineRule="auto"/>';
+        }
+
+        return '<w:spacing w:line="480" w:lineRule="auto"/>';
+    }
+
+    /** Explicit alignment, or the APA flush-left default. */
+    private function alignmentProperty(array $attrs, string $default = 'left'): string
+    {
+        $map = [
+            'left' => 'left',
+            'start' => 'left',
+            'center' => 'center',
+            'right' => 'right',
+            'end' => 'right',
+            'justify' => 'both',
+        ];
+
+        $value = (string) ($attrs['textAlign'] ?? $default);
+
+        return '<w:jc w:val="'.$this->escape($map[$value] ?? 'both').'"/>';
     }
 
     /**
@@ -290,6 +332,30 @@ class WorkspaceDocxExporter
                     break;
                 case 'strike':
                     $runProperties .= '<w:strike/>';
+                    break;
+                case 'textStyle':
+                    // Office-suite typography chosen in the workspace: font
+                    // family and size are carried into the run properties so
+                    // Word shows exactly what the editor showed.
+                    $style = (array) ($mark['attrs'] ?? []);
+
+                    if (! empty($style['fontFamily'])) {
+                        $family = $this->escape((string) $style['fontFamily']);
+                        $runProperties .= '<w:rFonts w:ascii="'.$family.'" w:hAnsi="'.$family.'"/>';
+                    }
+
+                    if (! empty($style['fontSize'])) {
+                        $points = $this->pointsFrom((string) $style['fontSize']);
+
+                        if ($points !== null) {
+                            $half = (string) max(2, (int) round($points * 2));
+                            $runProperties .= '<w:sz w:val="'.$half.'"/><w:szCs w:val="'.$half.'"/>';
+                        }
+                    }
+
+                    if (! empty($style['color'])) {
+                        $runProperties .= '<w:color w:val="'.$this->escape(ltrim((string) $style['color'], '#')).'"/>';
+                    }
                     break;
                 case 'trackedInsertion':
                     $wrapper = 'w:ins';
@@ -392,6 +458,22 @@ class WorkspaceDocxExporter
         }
 
         return implode('', $parts);
+    }
+
+    /** '12pt' → 12.0, '14 PT' → 14.0, '16px' → 12.0. Returns null for any unit the editor cannot emit. */
+    private function pointsFrom(string $value): ?float
+    {
+        if (preg_match('/^\s*(\d+(?:\.\d+)?)\s*(pt|px)?\s*$/i', $value, $matches) !== 1) {
+            return null;
+        }
+
+        $points = (float) $matches[1];
+
+        if (strtolower((string) ($matches[2] ?? 'pt')) === 'px') {
+            $points *= 0.75; // CSS px ≈ 3/4 pt at the mandated 96 dpi.
+        }
+
+        return $points;
     }
 
     private function escape(string $value): string

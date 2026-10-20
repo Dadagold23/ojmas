@@ -91,6 +91,42 @@
                                 <button id="btn-h{{ $level }}" class="btn btn-sm btn-outline-secondary" type="button">H{{ $level }}</button>
                             @endforeach
                             <span class="vr mx-1"></span>
+
+                            {{-- Paragraph and typography controls (office-suite style).
+                                 APA 7 defaults are preselected; any value explicitly
+                                 chosen here is a deliberate editorial decision and is
+                                 carried faithfully into the exported DOCX. --}}
+                            <select id="sel-font-family" class="form-select form-select-sm d-inline-flex" style="width:auto; min-width:11rem;" title="Font family">
+                                <option value="">Font: APA default (Times New Roman)</option>
+                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Cambria">Cambria</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Garamond">Garamond</option>
+                                <option value="Arial">Arial</option>
+                                <option value="Calibri">Calibri</option>
+                                <option value="Verdana">Verdana</option>
+                                <option value="Courier New">Courier New</option>
+                            </select>
+                            <select id="sel-font-size" class="form-select form-select-sm d-inline-flex" style="width:auto; min-width:6.5rem;" title="Font size">
+                                <option value="">Size: APA default (12 pt)</option>
+                                @foreach(['10pt', '11pt', '12pt', '13pt', '14pt', '16pt', '18pt', '20pt', '24pt', '48pt'] as $pt)
+                                    <option value="{{ $pt }}">{{ (int) $pt }} pt</option>
+                                @endforeach
+                            </select>
+                            <select id="sel-line-spacing" class="form-select form-select-sm d-inline-flex" style="width:auto; min-width:9rem;" title="Line spacing">
+                                <option value="">Spacing: APA default (double)</option>
+                                <option value="1">Single (1.0)</option>
+                                <option value="1.15">1.15</option>
+                                <option value="1.5">1.5</option>
+                                <option value="2">Double (2.0)</option>
+                                <option value="3">Triple (3.0)</option>
+                            </select>
+                            <span class="vr mx-1"></span>
+                            <button id="btn-align-left" class="btn btn-sm btn-outline-secondary" type="button" title="Align left (APA default)"><i class="bi bi-text-left"></i></button>
+                            <button id="btn-align-center" class="btn btn-sm btn-outline-secondary" type="button" title="Align centre"><i class="bi bi-text-center"></i></button>
+                            <button id="btn-align-right" class="btn btn-sm btn-outline-secondary" type="button" title="Align right"><i class="bi bi-text-right"></i></button>
+                            <button id="btn-align-justify" class="btn btn-sm btn-outline-secondary" type="button" title="Justify"><i class="bi bi-justify"></i></button>
+                            <span class="vr mx-1"></span>
                             <button id="btn-undo" class="btn btn-sm btn-outline-secondary" type="button"><i class="bi bi-arrow-counterclockwise"></i></button>
                             <button id="btn-redo" class="btn btn-sm btn-outline-secondary" type="button"><i class="bi bi-arrow-clockwise"></i></button>
                             <span class="vr mx-1"></span>
@@ -268,7 +304,10 @@
 
 @push('styles')
 <style>
-    #editor-surface .tiptap { outline: none; min-height: 55vh; }
+    /* Typography mirrors the APA 7 manuscript by default (12 pt serif, double
+       spacing, black on white, flush left); explicit paragraph attributes
+       chosen in the toolbar override these and are exported faithfully. */
+    #editor-surface .tiptap { outline: none; min-height: 55vh; font-family: 'Times New Roman', Cambria, 'Liberation Serif', 'Nimbus Roman', serif; font-size: 12pt; color: #111; }
     #editor-surface .tiptap p { margin: 0 0 1rem 0; }
     #editor-surface .tiptap h1,
     #editor-surface .tiptap h2,
