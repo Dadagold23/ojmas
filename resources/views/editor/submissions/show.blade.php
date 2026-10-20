@@ -140,12 +140,12 @@
                     <p class="text-muted small mb-0">No files uploaded for this submission.</p>
                     @endforelse
 
-                    {{-- Module 2 browser workspace open (authorisation is
-                         enforced server-side by WorkspacePolicy; this link
-                         is a convenience). --}}
-                    @php($editorialRoles = auth()->user()?->hasAnyRole(['Super Admin','Admin','Managing Editor','Managing Admin','Editor']))
-                    <div class="d-flex align-items-center justify-content-between py-3 px-2 rounded-3 mt-2 {{ $editorialRoles ? 'border' : 'd-none' }}">
-                        <div>
+                    {{-- Module 2 browser workspace open. The submission
+                         detail page is only reachable for editorial roles
+                         (route middleware), and authorisation is enforced
+                         server-side by WorkspacePolicy; this link is a
+                         convenience. --}}
+                    <div class="d-flex align-items-center justify-content-between py-3 px-2 rounded-3 mt-2 border">                        <div>
                             <div class="fw-semibold small">
                                 <i class="bi bi-pencil-square me-1 text-primary"></i>Browser manuscript workspace
                             </div>
