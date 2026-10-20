@@ -1,0 +1,585 @@
+# OJMAS JOURNAL ENHANCEMENT PROMPT
+## Module: Enhanced Archive, Article Citations, Public Advertising, and Web Push Notifications
+
+### 1. Your role
+
+Act as a senior Laravel developer, scholarly publishing systems architect, database engineer, frontend designer, and web-notification specialist.
+
+Enhance the existing OJMAS Journal website at https://ojmaspublish.online with the following capabilities:
+
+1. An enhanced journal archive and issue table of contents.
+2. Complete author and co-author attribution with citation-generation functionality.
+3. An advertisement and public-announcement management system.
+4. A browser-based push notification system controlled by authorized administrators.
+5. Administrative analytics for advertisement performance and notification delivery.
+
+This is an enhancement of an existing application, not a new project.
+
+### 2. Mandatory rules
+
+- Begin with a read-only audit of the existing application.
+- Verify the current Laravel version, database schema, article models, issue models, publication routes, authentication, roles, and storage configuration.
+- Reuse existing functionality wherever possible.
+- Preserve existing articles, PDFs, URLs, DOI records, user accounts, payment functionality, and publication metadata.
+- Do not create duplicate article or issue records unnecessarily.
+- Do not delete or overwrite production data.
+- Do not modify existing functionality unrelated to these features.
+- Use server-side authorization and secure file handling.
+- Implement responsive interfaces for mobile, tablet, and desktop.
+- Test each module before proceeding.
+- Stop after every module and wait for my explicit approval before continuing.
+
+If an existing component already provides a requested feature, extend it rather than duplicating it.
+
+---
+
+# MODULE 0 — AUDIT AND DESIGN
+
+Inspect the existing project and identify:
+
+1. How articles are stored and published.
+2. How volumes, issues, archives, and article PDFs are managed.
+3. How authors and co-authors are associated with articles.
+4. Whether author order, affiliations, ORCID identifiers, DOI, page ranges, and publication dates are stored.
+5. How public archive and issue pages are generated.
+6. Existing Admin, Super Admin, and other role permissions.
+7. Existing file storage and PDF delivery mechanisms.
+8. Existing notifications, queues, scheduled tasks, and email services.
+9. Hosting compatibility for web push, scheduled publishing, and media processing.
+10. The safest database changes and implementation architecture.
+
+Deliver a concise audit, implementation plan, database proposal, security assessment, and acceptance tests.
+
+Do not modify source code or production data during this module.
+
+Ask for my approval before proceeding to Module 1.
+
+---
+
+# MODULE 1 — ENHANCED JOURNAL ARCHIVE AND ISSUE TABLE OF CONTENTS
+
+## 1.1 Archive page
+
+Enhance the public archive page to display published journal volumes and issues in an organized, searchable format.
+
+Each issue should display, where available:
+
+- Journal title.
+- Volume number.
+- Issue number.
+- Publication year and date.
+- Issue title or theme.
+- Cover image.
+- Number of published articles.
+- Link to view the issue.
+- Optional full-issue PDF, if the journal actually provides one.
+
+Provide filters for year, volume, and issue. Add pagination or another scalable listing method.
+
+Only published and publicly accessible material may appear in the public archive.
+
+## 1.2 Issue detail page
+
+Create or enhance the public issue page with the following structure:
+
+**Issue header**
+- Volume and issue number.
+- Publication date.
+- Issue title or theme.
+- Issue description, where available.
+- Cover image, where available.
+- Optional full-issue PDF download.
+
+**Table of contents**
+- Article sequence number.
+- Article title.
+- Full author and co-author names in the correct order.
+- Article type or section.
+- Abstract preview, where available.
+- Page range or article identifier.
+- DOI, when assigned.
+- Publication date, where appropriate.
+- Article detail link.
+- PDF download link.
+
+Preserve the journal's approved article ordering. Do not sort published articles arbitrarily if an editorial sequence has already been established.
+
+Allow authorized administrators to manage the order of articles within an issue.
+
+Do not fabricate missing metadata.
+
+## 1.3 Individual article landing page
+
+Every published article should have a dedicated public landing page.
+
+Display:
+
+- Article title.
+- All authors and co-authors in the correct order.
+- Author affiliations where available.
+- Corresponding-author information where appropriate.
+- ORCID identifiers where available.
+- Journal title.
+- Volume, issue, publication year, and page range or article number.
+- DOI and a DOI link, if assigned.
+- Abstract.
+- Keywords.
+- Article PDF.
+- Publication licence and copyright information where recorded.
+- Citation formats.
+- Related issue and archive links.
+
+Keep the existing published PDF available and preserve established article URLs wherever possible.
+
+## 1.4 Author and co-author attribution
+
+Use the existing author relationships where available. If the schema cannot represent multiple authors, propose a normalized author/article relationship with an explicit author-order field.
+
+The system must support:
+
+- Multiple authors per article.
+- Correct author ordering.
+- Author affiliations.
+- Optional ORCID identifiers.
+- Optional corresponding-author designation.
+- Appropriate handling of missing metadata.
+- Consistent author information across archive pages, article pages, PDFs, and citation exports.
+
+Do not assume that the account submitting a manuscript is the only author.
+
+## 1.5 Citation generator
+
+Provide citation formats for published articles, including:
+
+- APA 7.
+- MLA, if supported by the implementation.
+- Chicago, if supported by the implementation.
+- A copyable plain-text citation.
+- BibTeX export.
+- RIS export.
+
+Generate citations from verified article metadata.
+
+For APA 7, correctly handle the available author list, publication year, article title, journal title, volume, issue, page range or article number, and DOI.
+
+Do not invent a DOI, page range, publication year, or author name. If a required field is unavailable, report the limitation instead of generating misleading information.
+
+Provide a Copy Citation action and downloadable citation files where appropriate.
+
+Ensure that citations remain consistent with the official published record.
+
+## 1.6 Search-engine and scholarly discoverability
+
+Where supported by the current application, implement appropriate:
+
+- Page titles and meta descriptions.
+- Canonical URLs.
+- Scholarly article metadata.
+- Google Scholar-compatible citation metadata.
+- Schema.org scholarly article structured data.
+- XML sitemap entries for public articles and issues.
+- Consistent DOI links and bibliographic metadata.
+
+Do not claim that these changes guarantee indexing or inclusion in any scholarly database.
+
+### Module 1 acceptance tests
+
+Verify that:
+
+- An issue displays all and only its intended published articles.
+- Authors and co-authors appear in the correct order.
+- Article PDFs open or download successfully.
+- Citation formats use the correct metadata.
+- Existing publication URLs continue working.
+- Unpublished articles remain inaccessible to public visitors.
+- Archive filters, pagination, and responsive layouts work.
+- No existing publication records are lost.
+
+Stop and request approval before Module 2.
+
+---
+
+# MODULE 2 — ADMINISTRATIVE ADVERTISEMENT AND ANNOUNCEMENT MANAGER
+
+## 2.1 Objective
+
+Create a dedicated dashboard section named:
+
+**Advertisements & Announcements**
+
+Access must be restricted to authorized Admin and Super Admin accounts.
+
+The system must support both revenue-generating advertisements and official journal announcements.
+
+## 2.2 Advertisement types
+
+Support:
+
+1. Image advertisements.
+2. Video advertisements.
+3. Audio or jingle promotions where technically appropriate.
+4. Banner advertisements.
+5. Calls for Papers.
+6. Upcoming volume and issue announcements.
+7. Publication-date announcements.
+8. Conferences, workshops, and academic events.
+9. Sponsored content announcements.
+10. General journal news.
+
+Do not treat every advertisement as a push notification. Administrators must be able to choose where each campaign appears.
+
+## 2.3 Advertisement creation form
+
+Provide the following fields where applicable:
+
+- Campaign title.
+- Campaign description.
+- Campaign type.
+- Advertiser or sponsor name.
+- Image, video, or audio upload.
+- Optional external media URL.
+- Destination URL.
+- Placement selection.
+- Publication start date and time.
+- Publication end date and time.
+- Campaign status.
+- Priority or display order.
+- Audience selection.
+- Push-notification option.
+- Advertisement label.
+- Optional pricing or sponsorship information.
+- Optional internal notes.
+
+Support draft, pending approval where configured, scheduled, published, paused, expired, and archived statuses.
+
+Validate uploaded media types, sizes, dimensions, and duration as applicable. Store files securely and avoid executing uploaded content.
+
+Do not embed arbitrary untrusted HTML or JavaScript in public advertisements.
+
+## 2.4 Public advertisement placements
+
+Allow administrators to configure permitted placements such as:
+
+- Homepage banner.
+- Archive page banner.
+- Issue page promotional area.
+- Article page banner.
+- Website announcement strip.
+- Dedicated Calls for Papers page.
+- Sponsored-content section.
+
+Provide mobile-responsive layouts and prevent advertisements from obscuring article content or interfering with PDF downloads.
+
+Clearly label paid or sponsored advertisements.
+
+Respect campaign start and end dates automatically. Expired campaigns must stop appearing without requiring manual deletion.
+
+## 2.5 Advertisement management dashboard
+
+Provide:
+
+- Campaign listing.
+- Search and filters.
+- Create, edit, preview, publish, pause, resume, and archive actions.
+- Scheduled-campaign calendar.
+- Start and expiry dates.
+- Campaign status indicators.
+- Placement configuration.
+- Media previews.
+- Basic campaign performance reporting.
+
+Implement appropriate role restrictions. Super Admin should be able to configure system-wide advertising settings, while Admin permissions should follow the existing authorization policy.
+
+Do not grant either role unrestricted permissions merely because the interface contains administrative controls.
+
+---
+
+# MODULE 3 — PUBLIC WEB PUSH NOTIFICATION SYSTEM
+
+## 3.1 Objective
+
+Implement browser-based push notifications so that consenting visitors and users can receive important journal updates even when the journal website is not currently open.
+
+Use a standards-based Web Push implementation compatible with the verified hosting environment.
+
+Evaluate whether a suitable Laravel-compatible Web Push library is appropriate. If a third-party service is proposed, document its pricing, data handling, limitations, and configuration requirements before adoption.
+
+Do not assume that a notification will reach every device or browser.
+
+## 3.2 Notification categories
+
+Support:
+
+- New volume published.
+- New issue published.
+- New article published.
+- Upcoming issue announcement.
+- Call for Papers.
+- Submission deadline reminders.
+- Conference or workshop announcements.
+- Sponsored announcements.
+- Advertisement campaigns.
+- Important journal notices.
+
+Allow administrators to choose which categories are eligible for public push notifications.
+
+## 3.3 Notification composer
+
+Create a dashboard form with:
+
+- Notification title.
+- Short message.
+- Notification category.
+- Optional icon or image.
+- Destination URL.
+- Target audience.
+- Publication time.
+- Optional expiry time.
+- Send immediately or schedule.
+- Optional linked advertisement campaign.
+- Draft or scheduled status.
+
+Provide a preview before sending.
+
+Validate message length, destination URLs, permissions, and scheduling information.
+
+## 3.4 Public subscription
+
+Provide a clear, optional Subscribe to Journal Updates control.
+
+Requirements:
+
+- Explain the notification purpose before asking for permission.
+- Request browser permission only after an explicit user action.
+- Support subscription management and unsubscribe actions.
+- Respect browser permission denials.
+- Detect unsupported browsers and provide an appropriate fallback.
+- Store subscription data securely.
+- Associate subscriptions with user accounts only where appropriate and permitted.
+- Support anonymous visitor subscriptions without exposing personal information.
+- Remove or disable invalid subscriptions after delivery failures.
+- Never bypass browser notification permissions.
+
+Implement the required service worker, HTTPS checks, Web Push subscription storage, and VAPID configuration where applicable.
+
+Do not expose VAPID private keys or other secrets in frontend code.
+
+For supported browsers, show notifications with a useful title, message, and destination link.
+
+Where native push is unavailable, provide an in-site announcement centre or another suitable fallback.
+
+## 3.5 Notification delivery
+
+Implement reliable notification delivery using queued jobs where supported.
+
+Include:
+
+- Scheduled notifications.
+- Delivery attempts and failure handling.
+- Retry policies with sensible limits.
+- Invalid-subscription cleanup.
+- Duplicate-send protection.
+- Delivery status reporting.
+- Audit logs.
+- Campaign-to-notification linkage.
+
+Do not send duplicate notifications when a scheduled job retries.
+
+Track the delivery results the system can actually observe. Do not report a notification as read or clicked unless the relevant event has genuinely been recorded.
+
+## 3.6 Audience targeting
+
+Support configurable targeting, such as:
+
+- All consenting subscribers.
+- Readers who opted into publication updates.
+- Readers who opted into announcements and promotions.
+- Authenticated users where appropriate.
+- Other consent-based groups supported by the existing system.
+
+Provide separate preferences for editorial or journal announcements and promotional messages where practical.
+
+Do not send commercial advertisements to all subscribers by default. Promotional targeting must respect the user's preferences and applicable privacy requirements.
+
+---
+
+# MODULE 4 — ADVERTISEMENT REVENUE AND CAMPAIGN ANALYTICS
+
+## 4.1 Objective
+
+Provide a basic advertising-management and performance-reporting system without assuming that the journal already has a payment gateway for advertisers.
+
+Record where applicable:
+
+- Campaign impressions.
+- Advertisement clicks.
+- Click-through rate.
+- Campaign start and expiry.
+- Advertiser or sponsor.
+- Campaign placement.
+- Campaign status.
+- Agreed advertising price, if recorded.
+- Payment status, if supported by an approved payment workflow.
+
+Define how impressions and clicks are counted. Prevent obvious duplicate or automated event inflation where practical.
+
+Distinguish between:
+
+- Agreed advertising revenue.
+- Invoiced revenue.
+- Paid revenue.
+- Estimated campaign performance.
+
+Do not label an unpaid invoice as collected revenue.
+
+## 4.2 Revenue controls
+
+Provide optional fields for:
+
+- Advertiser details.
+- Campaign quotation or agreement reference.
+- Price and currency.
+- Invoice reference.
+- Payment status.
+- Payment date.
+- Internal notes.
+
+Use the existing approved payment architecture if online advertiser payments are later authorized.
+
+Do not modify the journal's existing Paystack payment processing without explicit approval.
+
+Do not invent payment records or automatically charge advertisers.
+
+## 4.3 Reports
+
+Provide dashboard summaries and date-filtered reports for:
+
+- Active advertisements.
+- Scheduled campaigns.
+- Expired campaigns.
+- Impressions and clicks.
+- Campaign performance.
+- Recorded advertising income.
+- Outstanding recorded invoices, if implemented.
+- Notification delivery results.
+
+Restrict financial reports to authorized roles.
+
+---
+
+# MODULE 5 — AUTOMATED ISSUE AND ANNOUNCEMENT SCHEDULING
+
+Implement scheduling tools that allow administrators to prepare upcoming issue announcements in advance.
+
+For each future volume or issue, allow the authorized user to enter:
+
+- Volume number.
+- Issue number.
+- Planned publication date.
+- Call-for-Papers opening date.
+- Submission deadline.
+- Announcement publication date.
+- Related landing page.
+- Optional banner or promotional media.
+- Optional notification campaign.
+
+The system may automatically prepare or publish approved announcements at configured times.
+
+However, a scheduled announcement must not automatically create a published issue or publish unpublished articles.
+
+If the issue is delayed, administrators must be able to change the schedule, pause the announcement, or cancel queued notifications.
+
+Use the existing issue records where possible. Do not create duplicate issue entries.
+
+Provide a calendar or schedule view for upcoming publication dates and campaigns.
+
+---
+
+# MODULE 6 — INTEGRATION, SECURITY, AND QUALITY ASSURANCE
+
+## 6.1 Security
+
+Implement and test:
+
+- Server-side authorization.
+- CSRF protection.
+- Input validation and output escaping.
+- Secure media upload validation.
+- Private access to restricted files.
+- Rate limiting for subscription and public endpoints.
+- Protection against insecure direct object references.
+- Secure handling of notification subscription endpoints and keys.
+- Audit trails for campaign changes and notification sends.
+- Appropriate privacy and retention controls.
+
+Only authorized personnel may publish advertisements or send public notifications.
+
+## 6.2 Testing
+
+Test the following:
+
+- Archive and issue table of contents.
+- Multi-author and co-author attribution.
+- Citation generation.
+- PDF access and existing article URLs.
+- Advertisement upload and preview.
+- Campaign scheduling and automatic expiry.
+- Notification subscription and unsubscribe.
+- Browser permission denial.
+- Push delivery success and failure.
+- Duplicate-send prevention.
+- Notification destination links.
+- Role-based access.
+- Analytics accuracy.
+- Existing journal submission, payment, and publication functionality.
+
+Use test records and test subscriptions before any public campaign is sent.
+
+## 6.3 Deployment
+
+Before deployment:
+
+- Back up the database and relevant files.
+- Document migrations and rollback procedures.
+- Verify HTTPS, storage permissions, PHP extensions, and hosting capabilities.
+- Verify that required queue workers and scheduled tasks can run in the actual hosting environment.
+- Document any DNS, service-worker, VAPID, API, or third-party configuration.
+- Do not send real public notifications during development.
+- Do not deploy destructive changes without explicit authorization.
+
+## 6.4 Final deliverables
+
+Provide:
+
+1. Architecture audit.
+2. Implementation summary.
+3. Files created and modified.
+4. Database migrations.
+5. Configuration instructions.
+6. Advertisement-management user guide.
+7. Push-notification setup guide.
+8. Citation and archive test results.
+9. Security test results.
+10. Hosting and deployment instructions.
+11. Known limitations.
+12. Demonstration of the complete workflow.
+
+Report actual test results honestly. Distinguish local test success from verified production operation.
+
+---
+
+# FINAL DEVELOPMENT INSTRUCTION
+
+Execute one module at a time.
+
+Start with Module 0 only. Do not modify application code or production data during the audit.
+
+After presenting the audit and recommended architecture, ask:
+
+“Module 0 audit is complete. Do you approve the proposed architecture and authorize Module 1: Enhanced Journal Archive and Issue Table of Contents?”
+
+Wait for my explicit approval before proceeding.
+
+After each subsequent module, report the implemented features, changed files, tests performed, failures, and outstanding issues. Wait for my approval before starting the next module.
+
+End of prompt.

@@ -139,6 +139,24 @@
                     @empty
                     <p class="text-muted small mb-0">No files uploaded for this submission.</p>
                     @endforelse
+
+                    {{-- Module 2 browser workspace open (authorisation is
+                         enforced server-side by WorkspacePolicy; this link
+                         is a convenience). --}}
+                    @php($editorialRoles = auth()->user()?->hasAnyRole(['Super Admin','Admin','Managing Editor','Managing Admin','Editor']))
+                    <div class="d-flex align-items-center justify-content-between py-3 px-2 rounded-3 mt-2 {{ $editorialRoles ? 'border' : 'd-none' }}">
+                        <div>
+                            <div class="fw-semibold small">
+                                <i class="bi bi-pencil-square me-1 text-primary"></i>Browser manuscript workspace
+                            </div>
+                            <div class="text-muted" style="font-size:.78rem">
+                                Edit, comment and track changes in the browser — sequential editing with save-conflict detection, never silent overwrites.
+                            </div>
+                        </div>
+                        <a href="{{ route('workspace.show', $submission) }}" class="btn btn-sm btn-primary">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>Open workspace
+                        </a>
+                    </div>
                 </div>
             </div>
 

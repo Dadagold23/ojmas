@@ -2,14 +2,20 @@
 
 namespace App\Services\Workspace;
 
+use App\Models\ArticleFile;
 use App\Models\ManuscriptDocument;
 use App\Models\ManuscriptSnapshot;
+use App\Models\ManuscriptVersion;
 use App\Models\ManuscriptWorkspaceDocument;
 use App\Models\Submission;
 use App\Models\User;
 use App\Services\Documents\Ast\ParsedManuscript;
+use App\Services\Documents\Exceptions\DocumentProcessingException;
 use App\Services\Documents\Formatting\DocxRenderer;
+use App\Services\Documents\Ingestion\DocxSecurityValidator;
+use App\Services\Documents\ManuscriptProcessingService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -46,6 +52,12 @@ class WorkspaceDocumentService
         'block_quote' => 'blockquote',
     ];
 
+    public function __construct(
+        private readonly DocxSecurityValidator $securityValidator,
+        private readonly ManuscriptProcessingService $processing,
+    ) {
+    }
+
     /**
      * Finds or creates the working document for a parsed manuscript.
      */
@@ -63,6 +75,144 @@ class WorkspaceDocumentService
             'content_json' => null,
             'revision' => 1,
         ]);
+    }
+
+    /**
+     * Finds the workspace document through the version chain, when it exists.
+     *
+     * Chain: submission → manuscript_version → manuscript_document → workspace.
+     * A version that exists but was never parsed is parsed on demand — an
+     * interrupted ingestion should not permanently hide a readable manuscript.
+     */
+    public function resolveForSubmission(Submission $submission): ?ManuscriptWorkspaceDocument
+    {
+        $version = ManuscriptVersion::where('submission_id', $submission->id)
+            ->latest('id')
+            ->first();
+
+        if ($version === null) {
+            return null;
+        }
+
+        $document = ManuscriptDocument::where('manuscript_version_id', $version->id)->first();
+
+        if ($document === null) {
+            try {
+                $document = $this->processing->parse($version);
+            } catch (DocumentProcessingException) {
+                return null;
+            }
+        }
+
+        if (! $document->hasParsedSuccessfully()) {
+            return null;
+        }
+
+        return $this->forDocument($document, $submission->id);
+    }
+
+    /**
+     * Bootstraps the workspace from the ORIGINAL uploaded manuscript.
+     *
+     * Submissions that exist (legacy rows, plain uploads, out-of-band import
+     * flows) have no manuscript_version record, because that record is created
+     * by the ingestion pipeline. Without it, `resolveForSubmission`
+     * returned null and the browser editor rendered an empty shell — which was
+     * reported as "the workspace is not implemented; only download works".
+     *
+     * This method closes that gap without re-uploading or touching anything:
+     * it re-uses the ORIGINAL stored bytes as a manuscript_version
+     * (`source_file_id` points at the existing `article_files` record and
+     * `storage_path` already exists on the private disk, so no file is copied
+     * and no original is modified), parses it through the same security
+     * validation and DOCX parser as ingestion, and imports the result into an
+     * editable workspace document.
+     *
+     * Returns null when there is honestly nothing to edit: no manuscript file,
+     * a file that fails the same security validation as uploads (not a DOCX,
+     * corrupt, oversized, macro-carrying), or a document the parser could not
+     * read. The caller renders an explanatory state in that case; nothing is
+     * silently discarded.
+     */
+    public function bootstrapForSubmission(Submission $submission, User $user): ?ManuscriptWorkspaceDocument
+    {
+        $workspace = $this->resolveForSubmission($submission);
+
+        if ($workspace !== null) {
+            return $workspace;
+        }
+
+        $file = ArticleFile::where('submission_id', $submission->id)
+            ->where('file_type', 'manuscript')
+            ->where('is_anonymised', false)
+            ->latest('id')
+            ->first();
+
+        if ($file === null) {
+            return null;
+        }
+
+        $disk = Storage::disk(config('manuscripts.disk', 'private'));
+        $path = trim((string) $file->file_path);
+
+        if ($path === '' || ! $disk->exists($path)) {
+            return null;
+        }
+
+        $absolute = $disk->path($path);
+
+        try {
+            // The exact same gate every upload is subject to (Module 1):
+            // magic bytes, zip ceilings, macro rejection, traversal checks.
+            $this->securityValidator->validate($absolute, (string) $file->original_name);
+
+            $sha256 = hash_file('sha256', $absolute);
+            $size = (int) filesize($absolute);
+
+            $version = DB::transaction(function () use ($submission, $file, $path, $sha256, $size, $user) {
+                $number = (int) ManuscriptVersion::where('submission_id', $submission->id)
+                    ->max('version_number') + 1;
+
+                $version = ManuscriptVersion::create([
+                    'submission_id' => $submission->id,
+                    'version_number' => $number,
+                    'label' => $file->version_label ?: 'Version '.$number,
+                    'source_file_id' => $file->id,
+                    'storage_path' => $path,
+                    'mime_type' => $file->mime_type ?: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'file_size' => $size,
+                    'sha256' => $sha256,
+                    'format' => 'original',
+                    // The allowed enum values record where a version came
+                    // from. These bytes ARE an author upload, merely now
+                    // registered for editing; no fictional provenance.
+                    'origin' => 'author_upload',
+                    'created_by' => $user->id,
+                ]);
+
+                if ($submission->current_version_id === null) {
+                    $submission->forceFill(['current_version_id' => $version->id])->save();
+                }
+
+                return $version;
+            });
+
+            $document = $this->processing->parse($version);
+
+            if (! $document->hasParsedSuccessfully()) {
+                return null;
+            }
+
+            $workspace = $this->forDocument($document, $submission->id);
+
+            $parsed = ParsedManuscript::fromArray($document->structure_json ?? []);
+
+            return $this->importFromParsed($workspace, $parsed, $user);
+        } catch (DocumentProcessingException) {
+            // The original failed ingestion-grade validation or parsing.
+            // Nothing was created; the caller explains itself.
+            return null;
+        }
     }
 
     /**

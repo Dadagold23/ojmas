@@ -307,6 +307,54 @@ php artisan test
 Changes committed after the Module 5 implementation commit: see the git log
 entry following `a192a3c`.
 
+# Reported-bug fix (2026-10-21): the workspace could not be opened for editing
+
+**Report:** "Admin, managing editor, reviewer, etc. could not open the
+document for editing — only downloading works."
+
+**Root cause (verified in code, not guessed):** the browser workspace
+document is chained `submission → manuscript_version → parsed manuscript
+document → workspace document`. That chain only exists for manuscripts that
+had been run through the Module 1 ingest+parse pipeline. Every real
+submission that predated that pipeline (legacy rows, plain author uploads,
+out-of-band publications) had **no version record**, so
+`ManuscriptWorkspaceController::resolveWorkspace()` returned `null` and the
+workspace rendered an empty editor shell — reads and downloads worked, the
+editor did not. The feature tests never caught it because every fixture
+ingested its manuscript first.
+
+**Fix (no destructive change, originals untouched):**
+- `WorkspaceDocumentService::bootstrapForSubmission()` — on first open of a
+  submission that has no version chain, it registers the **existing stored
+  DOCX bytes** as a manuscript version (`source_file_id` points at the
+  existing `article_files` row; `storage_path` is the current file path, so
+  **no file is copied and no byte is modified**), subjects it to the same
+  security validation as an upload (magic bytes, zip ceilings, macro
+  rejection), parses it with the standard parser, and imports it into an
+  editable workspace document with a first snapshot.
+- Version recovery: a version that exists but was never parsed is parsed on
+  demand instead of permanently hiding the manuscript.
+- Honest failure states: when there is genuinely nothing to edit (original
+  is a PDF/corrupt, no file attached), the workspace now shows an explicit
+  warning listing the possible reasons, and nothing is created — the APA 7
+  formatting tools and downloads remain available.
+- UI entry points: the editorial/admin submission detail page
+  (`editor.submissions.show`, served for both roles) previously offered
+  download-only; it now carries an "Open workspace" button (contents remain
+  authorisation-gated by `WorkspacePolicy` server-side; the button is a
+  convenience).
+
+**Tests:** `tests/Feature/Workspace/WorkspaceBootstrapTest.php` (4 tests,
+29 assertions): staff opens and edits an un-ingested manuscript (original
+bytes provably untouched, no fabricated second upload); reopening creates no
+duplicate version; assigned reviewer can read but not edit; non-DOCX
+original yields the warning banner and zero created records. Full suite
+after the change: **293 passed, 1289 assertions, 0 failed.**
+
+**Not possible to verify here:** the live browser experience (Tiptap mount
+against real data). The HTTP layer it relies on is now exercised by tests
+for exactly the reported case.
+
 ## F. Updated open-items list (the honest remainder)
 
 1. **S12** — rate limiting on manuscript download endpoints (still open;

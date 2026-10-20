@@ -441,42 +441,22 @@ class ManuscriptWorkspaceController extends Controller
     /**
      * Resolves the working document for a submission.
      *
-     * manuscript_documents links to a submission through manuscript_versions,
-     * not directly, so the lookup goes via the version.
+     * The workspace document hangs off the parsed manuscript chain
+     * (submission → version → document → workspace). When no version exists —
+     * the case for every submission created before the ingestion pipeline, or
+     * uploaded out-of-band — the workspace is bootstrapped directly from the
+     * original uploaded DOCX on this first open, so editorial staff can edit
+     * in the browser instead of being left with download-only pages.
      */
     private function resolveWorkspace(Request $request, Submission $submission, bool $create = false): ?ManuscriptWorkspaceDocument
     {
-        $version = \App\Models\ManuscriptVersion::where('submission_id', $submission->id)
-            ->latest('id')
-            ->first();
-
-        if ($version === null) {
-            return null;
-        }
-
-        $document = ManuscriptDocument::where('manuscript_version_id', $version->id)->first();
-
-        if ($document === null || ! $document->hasParsedSuccessfully()) {
-            return null;
-        }
-
-        $workspace = ManuscriptWorkspaceDocument::where('manuscript_document_id', $document->id)->first();
+        $workspace = $this->documents->resolveForSubmission($submission);
 
         if ($workspace !== null || ! $create) {
             return $workspace;
         }
 
-        // First open: import the parsed manuscript into the workspace.
-        $parsed = \App\Services\Documents\Ast\ParsedManuscript::fromArray($document->structure_json ?? []);
-
-        if (($parsed->blocks ?? []) === []) {
-            return null;
-        }
-
-        $workspace = $this->documents->forDocument($document, $submission->id);
-        $this->documents->importFromParsed($workspace, $parsed, $request->user());
-
-        return $workspace->fresh();
+        return $this->documents->bootstrapForSubmission($submission, $request->user());
     }
 
     private function statusFor(SaveResult $result): int

@@ -50,6 +50,23 @@
             </div>
         </div>
 
+        <?php if($workspace === null): ?>
+            <div class="alert alert-warning rounded-4 py-2" role="alert">
+                <div class="fw-semibold mb-1">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    The browser editor could not open this manuscript.
+                </div>
+                <p class="small mb-1">There is no readable document version behind this submission yet. That is normally because:</p>
+                <ul class="small mb-1">
+                    <li>the original upload is not a readable <code>.docx</code> file (for example a PDF or a corrupt archive), and the editor never opened a DOCX version for it; or</li>
+                    <li>no manuscript file is attached to the submission at all.</li>
+                </ul>
+                <p class="small mb-0">
+                    Nothing was changed. The original upload and the APA 7 formatting tools remain available for this submission.
+                </p>
+            </div>
+        <?php endif; ?>
+
         <?php if(!$capabilities['canEdit']): ?>
             <div class="alert alert-info rounded-4 py-2 small" id="editor-notice">
                 <i class="bi bi-eye me-1"></i>
