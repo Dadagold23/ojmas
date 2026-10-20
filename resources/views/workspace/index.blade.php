@@ -121,6 +121,28 @@
                                 <option value="2">Double (2.0)</option>
                                 <option value="3">Triple (3.0)</option>
                             </select>
+                            <select id="sel-space-before" class="form-select form-select-sm d-inline-flex" style="width:auto; min-width:8rem;" title="Space before paragraph">
+                                <option value="">Before: APA default (0 pt)</option>
+                                <option value="0">Before: 0 pt</option>
+                                @foreach([3, 6, 12, 18, 24] as $pt)
+                                    <option value="{{ $pt }}">Before: {{ $pt }} pt</option>
+                                @endforeach
+                            </select>
+                            <select id="sel-space-after" class="form-select form-select-sm d-inline-flex" style="width:auto; min-width:8rem;" title="Space after paragraph">
+                                <option value="">After: APA default (0 pt)</option>
+                                <option value="0">After: 0 pt</option>
+                                @foreach([3, 6, 12, 18, 24] as $pt)
+                                    <option value="{{ $pt }}">After: {{ $pt }} pt</option>
+                                @endforeach
+                            </select>
+                            <select id="sel-first-line-indent" class="form-select form-select-sm d-inline-flex" style="width:auto; min-width:9.5rem;" title="First-line indent">
+                                <option value="">Indent: APA default (0.5&#8221;)</option>
+                                <option value="0">Flush left (0&#8221;)</option>
+                                <option value="360">0.25&#8221;</option>
+                                <option value="720">0.5&#8221;</option>
+                                <option value="1080">0.75&#8221;</option>
+                                <option value="1440">1&#8221;</option>
+                            </select>
                             <span class="vr mx-1"></span>
                             <button id="btn-align-left" class="btn btn-sm btn-outline-secondary" type="button" title="Align left (APA default)"><i class="bi bi-text-left"></i></button>
                             <button id="btn-align-center" class="btn btn-sm btn-outline-secondary" type="button" title="Align centre"><i class="bi bi-text-center"></i></button>
@@ -308,7 +330,11 @@
        spacing, black on white, flush left); explicit paragraph attributes
        chosen in the toolbar override these and are exported faithfully. */
     #editor-surface .tiptap { outline: none; min-height: 55vh; font-family: 'Times New Roman', Cambria, 'Liberation Serif', 'Nimbus Roman', serif; font-size: 12pt; color: #111; }
-    #editor-surface .tiptap p { margin: 0 0 1rem 0; }
+    /* Paragraph spacing mirrors the APA 7 default of 0 pt before / 0 pt after
+       (the visual gaps Word's styles add are gone); the editor can add gaps
+       with the Before/After controls, which write inline styles that win. */
+    #editor-surface .tiptap p { margin: 0; text-indent: 36pt; }
+    #editor-surface .tiptap blockquote p { text-indent: 0; }
     #editor-surface .tiptap h1,
     #editor-surface .tiptap h2,
     #editor-surface .tiptap h3 { margin: 1.4rem 0 .7rem 0; font-weight: 600; }

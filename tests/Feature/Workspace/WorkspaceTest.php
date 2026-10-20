@@ -749,9 +749,11 @@ class WorkspaceTest extends TestCase
         $response = $this->actingAs($editor)->get(route('workspace.export', $submission));
         $xml = $this->documentXml($this->exportedPath($response));
 
-        // APA 7: double spacing throughout (480 twips), flush-left paragraphs.
-        $this->assertStringContainsString('<w:spacing w:line="480" w:lineRule="auto"/>', $xml);
+        // APA 7: double spacing throughout (480 twips), 0 pt before / 0 pt after
+        // every paragraph, flush-left body text with the 0.5 in first-line indent.
+        $this->assertStringContainsString('<w:spacing w:before="0" w:after="0" w:line="480" w:lineRule="auto"/>', $xml);
         $this->assertStringContainsString('<w:jc w:val="left"/>', $xml);
+        $this->assertStringContainsString('<w:ind w:firstLine="720"/>', $xml);
 
         // One-inch margins and the profile typeface land in the section and style parts.
         $zip = new \ZipArchive();
@@ -774,7 +776,13 @@ class WorkspaceTest extends TestCase
                 'content' => [
                     [
                         'type' => 'paragraph',
-                        'attrs' => ['textAlign' => 'center', 'lineSpacing' => 1.5],
+                        'attrs' => [
+                            'textAlign' => 'center',
+                            'lineSpacing' => 1.5,
+                            'spaceBefore' => 6,
+                            'spaceAfter' => 12,
+                            'firstLineIndent' => 720,
+                        ],
                         'content' => [[
                             'type' => 'text',
                             'text' => 'A deliberately styled paragraph.',
@@ -786,7 +794,7 @@ class WorkspaceTest extends TestCase
                     ],
                     [
                         'type' => 'paragraph',
-                        'attrs' => ['lineSpacing' => 1],
+                        'attrs' => ['lineSpacing' => 1, 'firstLineIndent' => 0],
                         'content' => [['type' => 'text', 'text' => 'Single-spaced paragraph.']],
                     ],
                 ],
@@ -800,13 +808,63 @@ class WorkspaceTest extends TestCase
         // Alignment chosen in the editor…
         $this->assertStringContainsString('<w:jc w:val="center"/>', $xml);
 
-        // …1.5 and 1.0 line spacing (1.5 × 240 = 360, 1.0 × 240 = 240)….
-        $this->assertStringContainsString('<w:spacing w:line="360" w:lineRule="auto"/>', $xml);
-        $this->assertStringContainsString('<w:spacing w:line="240" w:lineRule="auto"/>', $xml);
+        // …1.5 and 1.0 line spacing (1.5 × 240 = 360, 1.0 × 240 = 240), and the
+        // editor's before/after decisions (6 pt / 12 pt) overriding APA's 0/0….
+        $this->assertStringContainsString('<w:spacing w:before="120" w:after="240" w:line="360" w:lineRule="auto"/>', $xml);
+        $this->assertStringContainsString('<w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/>', $xml);
+
+        // …the indentation decisions….
+        $this->assertStringContainsString('<w:ind w:firstLine="720"/>', $xml);
+        $this->assertStringContainsString('<w:ind w:firstLine="0"/>', $xml);
 
         // …and the typography as real run properties.
         $this->assertStringContainsString('w:rFonts w:ascii="Arial"', $xml);
         $this->assertStringContainsString('<w:sz w:val="28"/>', $xml); // 14 pt × 2
+    }
+
+    public function test_the_original_upload_s_indentation_and_alignment_survive_into_the_workspace_and_export(): void
+    {
+        [$submission] = $this->workspaceFor('indented');
+        $editor = $this->user('Editor');
+
+        $document = $this->actingAs($editor)->get(route('workspace.document', $submission))->json();
+        $paragraphs = collect($document['content']['content']);
+
+        // The indented body paragraph: the author's 0.5 in first line and
+        // 0.25 in left indent are carried into the workspace content…
+        $indented = $paragraphs->first(fn ($block) =>
+            str_contains((string) ($block['content'][0]['text'] ?? ''), 'first-line indent, a 0.25 inch'));
+        $this->assertSame(720, $indented['attrs']['firstLineIndent']);
+        $this->assertSame(360, $indented['attrs']['leftIndent']);
+
+        // …an explicit flush paragraph stays an explicit decision…
+        $flush = $paragraphs->first(fn ($block) =>
+            str_contains((string) ($block['content'][0]['text'] ?? ''), 'flush with the margin'));
+        $this->assertSame(0, $flush['attrs']['firstLineIndent']);
+
+        // …a paragraph with no indentation attributes stays unset (APA default applies later)…
+        $plain = $paragraphs->first(fn ($block) =>
+            str_contains((string) ($block['content'][0]['text'] ?? ''), 'no indentation attributes'));
+        $this->assertArrayNotHasKey('firstLineIndent', $plain['attrs']);
+
+        // …and the deliberately centred title keeps its centring.
+        $title = $paragraphs->first(fn ($block) => $block['type'] === 'heading'
+            && ($block['attrs']['submissionBlockType'] ?? null) === 'title');
+        $this->assertSame('center', $title['attrs']['textAlign']);
+
+        // The export writes the original geometry exactly…
+        $response = $this->actingAs($editor)->get(route('workspace.export', $submission));
+        $xml = $this->documentXml($this->exportedPath($response));
+
+        $this->assertStringContainsString('<w:ind w:left="360" w:firstLine="720"/>', $xml);
+        $this->assertStringContainsString('<w:ind w:firstLine="0"/>', $xml);
+        $this->assertStringContainsString('<w:jc w:val="center"/>', $xml);
+
+        // …while the original's before/after spacing is deliberately NOT
+        // carried: APA 7 compliance always applies (0 pt / 0 pt), and only an
+        // explicit editor decision in the workspace can add gaps.
+        $this->assertStringNotContainsString('w:before="120"', $xml);
+        $this->assertStringContainsString('<w:spacing w:before="0" w:after="0" w:line="480" w:lineRule="auto"/>', $xml);
     }
 
     public function test_comments_are_exported_as_a_visible_discussion(): void

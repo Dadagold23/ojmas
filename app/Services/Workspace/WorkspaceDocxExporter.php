@@ -218,7 +218,7 @@ class WorkspaceDocxExporter
         if ($type === 'heading') {
             $level = (int) ($attrs['level'] ?? 1);
             $xml = '<w:p><w:pPr><w:pStyle w:val="Heading'.max(1, min(6, $level)).'"/>'
-                .$spacing.'<w:ind w:firstLine="0"/>'.$alignment.'</w:pPr>'
+                .$spacing.$this->indentationProperty($attrs, 0).$alignment.'</w:pPr>'
                 .$this->inline($block)
                 .'</w:p>';
 
@@ -227,7 +227,7 @@ class WorkspaceDocxExporter
 
         if ($type === 'blockquote') {
             return '<w:p><w:pPr>'.$spacing
-                .'<w:ind w:left="720" w:firstLine="0"/>'.$alignment.'</w:pPr>'
+               .'<w:ind w:left="720" w:firstLine="0"/>'.$alignment.'</w:pPr>'
                 .$this->inline($block)
                 .'</w:p>';
         }
@@ -242,30 +242,81 @@ class WorkspaceDocxExporter
             return $xml;
         }
 
-        return '<w:p><w:pPr>'.$spacing.'<w:ind w:firstLine="720"/>'.$alignment.'</w:pPr>'
+        // Body paragraph: the original upload's indentation is honoured; an
+        // original paragraph with none set gets the APA 0.5 in first line.
+        return '<w:p><w:pPr>'.$spacing.$this->indentationProperty($attrs, 720).$alignment.'</w:pPr>'
             .$this->inline($block)
             .'</w:p>';
     }
 
     /**
-     * Line spacing into OOXML.
+     * Line and paragraph spacing into OOXML.
      *
-     * Default is **double** (w:line="480", line-rule auto) — APA 7 requires
-     * double spacing throughout, so the editor's untouched paragraphs comply
-     * without anyone having to pick a setting. A `lineSpacing` attribute set
-     * in the workspace is an explicit editorial decision and overrides it.
+     * APA 7 defaults are always applied: double spacing (w:line="480",
+     * line-rule auto) and **0 pt before, 0 pt after every paragraph** — so the
+     * exported manuscript never carries accidental gaps, exactly as Word's
+     * "Before: 0 pt, After: 0 pt" setting behaves. Values set in the
+     * workspace (lineSpacing, spaceBefore, spaceAfter — pt for before/after)
+     * are explicit editorial decisions and override the defaults.
      */
     private function spacingProperty(array $attrs): string
     {
         $value = $attrs['lineSpacing'] ?? null;
 
         if (is_numeric($value) && (float) $value > 0) {
-            $twips = (string) max(120, (int) round(((float) $value) * 240));
-
-            return '<w:spacing w:line="'.$twips.'" w:lineRule="auto"/>';
+            $line = (string) max(120, (int) round(((float) $value) * 240));
+        } else {
+            $line = '480'; // APA 7: double spacing throughout.
         }
 
-        return '<w:spacing w:line="480" w:lineRule="auto"/>';
+        $before = is_numeric($attrs['spaceBefore'] ?? null)
+            ? (string) max(0, (int) round(((float) $attrs['spaceBefore']) * 20))
+            : '0';
+        $after = is_numeric($attrs['spaceAfter'] ?? null)
+            ? (string) max(0, (int) round(((float) $attrs['spaceAfter']) * 20))
+            : '0';
+
+        return '<w:spacing w:before="'.$before.'" w:after="'.$after.'" w:line="'.$line.'" w:lineRule="auto"/>';
+    }
+
+    /**
+     * Indentation into OOXML.
+     *
+     * Whatever the author's original upload carried in (first line, left,
+     * hanging — in twips) is honoured; paragraphs the original left unset get
+     * the APA 7 default of a 0.5 in first-line indent, unless a `$default`
+     * override says otherwise (headings are flush; the blockquote and list
+     * branches set their own).
+     */
+    private function indentationProperty(array $attrs, ?int $defaultFirstLine = null): string
+    {
+        $parts = [];
+
+        $left = is_numeric($attrs['leftIndent'] ?? null)
+            ? max(0, (int) round((float) $attrs['leftIndent']))
+            : 0;
+
+        if ($left > 0) {
+            $parts[] = 'w:left="'.$left.'"';
+        }
+
+        $hanging = is_numeric($attrs['hangingIndent'] ?? null)
+            ? max(0, (int) round((float) $attrs['hangingIndent']))
+            : null;
+
+        if ($hanging !== null && $hanging > 0) {
+            $parts[] = 'w:hanging="'.$hanging.'"';
+        } else {
+            $firstLine = is_numeric($attrs['firstLineIndent'] ?? null)
+                ? (int) round((float) $attrs['firstLineIndent'])
+                : $defaultFirstLine;
+
+            if ($firstLine !== null) {
+                $parts[] = 'w:firstLine="'.max(0, $firstLine).'"';
+            }
+        }
+
+        return $parts === [] ? '' : '<w:ind '.implode(' ', $parts).'/>';
     }
 
     /** Explicit alignment, or the APA flush-left default. */

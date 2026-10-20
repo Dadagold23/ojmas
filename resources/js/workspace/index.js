@@ -18,7 +18,7 @@ import {
   TrackedInsertion,
   TrackedDeletion,
   CommentAnchor,
-  LineSpacing,
+  ParagraphFormatting,
 } from './extensions'
 import { AutosaveController } from './autosave'
 
@@ -94,7 +94,7 @@ const editor = new Editor({
     TextStyle,
     FontFamily,
     FontSize,
-    LineSpacing,
+    ParagraphFormatting,
     TextAlign.configure({
       types: ['paragraph', 'heading', 'blockquote'],
     }),
@@ -634,6 +634,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const value = event.target.value
     if (value) editor.chain().focus().setLineSpacing(value).run()
     else editor.chain().focus().unsetLineSpacing().run()
+  })
+
+  // Paragraph spacing before/after (Word's "Before: 0 pt, After: 0 pt").
+  // Empty means "APA default" (0 pt) — an unset attribute exports 0/0.
+  el('sel-space-before')?.addEventListener('change', event => {
+    const value = event.target.value
+    if (value !== '' && value !== '0') editor.chain().focus().setSpacingBefore(Number(value)).run()
+    else if (value === '0') editor.chain().focus().setSpacingBefore(0).run()
+    else editor.chain().focus().unsetSpacingBefore().run()
+  })
+
+  el('sel-space-after')?.addEventListener('change', event => {
+    const value = event.target.value
+    if (value !== '' && value !== '0') editor.chain().focus().setSpacingAfter(Number(value)).run()
+    else if (value === '0') editor.chain().focus().setSpacingAfter(0).run()
+    else editor.chain().focus().unsetSpacingAfter().run()
+  })
+
+  // First-line indentation. Values are twips (720 = 0.5 inch = APA default;
+  // 0 is an explicit flush-left decision, distinct from "unset").
+  el('sel-first-line-indent')?.addEventListener('change', event => {
+    const value = event.target.value
+    if (value !== '') editor.chain().focus().setFirstLineIndent(Number(value)).run()
+    else editor.chain().focus().unsetFirstLineIndent().run()
   })
 
   for (let level = 1; level <= 3; level++) {

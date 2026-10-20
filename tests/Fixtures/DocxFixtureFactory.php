@@ -99,6 +99,49 @@ class DocxFixtureFactory
         return $this->write($name, $body, $this->a4Section(1440));
     }
 
+    /** A manuscript whose body paragraphs deliberately carry indent + spacing choices. */
+    public function indented(string $name = 'indented.docx'): string
+    {
+        $body = '';
+
+        $body .= $this->paragraph('Effects of Instructional Scaffolding on Secondary Students\' Achievement', [
+            'style' => 'Title',
+            'jc' => 'center',
+        ]);
+        $body .= $this->paragraph('Amina Bello', ['jc' => 'center', 'bold' => true]);
+
+        $body .= $this->heading('Introduction', 1);
+        $body .= $this->paragraph(
+            'This body paragraph carries the author\'s own 0.5 inch first-line indent, a 0.25 inch left indent '
+            .'and explicit 6 pt spacing before it, so the workspace can be verified to accept the upload as '
+            .'it was formatted rather than rejecting or rewriting the paragraph geometry.',
+            ['firstLine' => 720, 'left' => 360, 'before' => 120, 'after' => 240],
+        );
+        $body .= $this->paragraph(
+            'This body paragraph is deliberately flush with the margin: the author set an explicit zero '
+            .'first-line indent on it, which the workspace must also preserve as a decision rather than '
+            .'treat it as an unset default.',
+            ['firstLine' => 0],
+        );
+        $body .= $this->paragraph(
+            'This body paragraph carries no indentation attributes at all, so APA 7 must apply its own '
+            .'0.5 inch first-line indent default when the workspace exports it.',
+        );
+
+        $body .= $this->heading('Results', 1);
+        $body .= $this->paragraph('Descriptive statistics are reported in the body text without a table.');
+
+        $body .= $this->heading('References', 1);
+        $body .= $this->paragraph(
+            'Belland, B. R., Walker, A. E., Kim, S., & Lefler, M. (2020). Synthesizing results from empirical '
+            .'research on computer-based scaffolding in K-12 education: A meta-analysis. Review of '
+            .'Educational Research, 90(4), 611-651. https://doi.org/10.3102/0034654320914221',
+            ['hanging' => 720, 'left' => 720, 'line' => 480, 'rule' => 'auto'],
+        );
+
+        return $this->write($name, $body, $this->a4Section(1440));
+    }
+
     /** A manuscript with APA violations for the rule engine to correct. */
     public function nonCompliant(string $name = 'non-compliant.docx'): string
     {

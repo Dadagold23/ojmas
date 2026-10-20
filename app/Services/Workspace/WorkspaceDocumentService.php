@@ -448,7 +448,10 @@ class WorkspaceDocumentService
 
             return [[
                 'type' => 'heading',
-                'attrs' => ['level' => max(1, min(6, $level)), 'submissionBlockType' => $node->type],
+                'attrs' => array_merge(
+                    ['level' => max(1, min(6, $level)), 'submissionBlockType' => $node->type],
+                    $this->formattingAttributes($node),
+                ),
                 'content' => $this->inlineContent($node),
             ]];
         }
@@ -462,9 +465,52 @@ class WorkspaceDocumentService
 
         return [[
             'type' => 'paragraph',
-            'attrs' => ['submissionBlockType' => $node->type],
+            'attrs' => array_merge(
+                ['submissionBlockType' => $node->type],
+                $this->formattingAttributes($node),
+            ),
             'content' => $this->inlineContent($node),
         ]];
+    }
+
+    /**
+     * Formatting the author applied in the original upload, carried into the
+     * workspace so the document can be accepted **as it was formatted**.
+     *
+     * First-line, left and hanging indents are always preserved (an explicit
+     * 0 stays 0, an absent value stays absent so the APA default applies).
+     * Deliberate alignment is preserved too — a centred title must still be
+     * centred in the workspace.
+     *
+     * Line spacing and space-before/after are deliberately NOT carried: APA 7
+     * defaults (double spacing, 0 pt gaps) always apply; only an explicit
+     * editor decision changes them.
+     *
+     * @return array<string, mixed>
+     */
+    private function formattingAttributes(\App\Services\Documents\Ast\ManuscriptNode $node): array
+    {
+        $attrs = [];
+
+        $alignment = $node->attribute('alignment');
+
+        if (in_array($alignment, ['center', 'right', 'both', 'justify'], true)) {
+            $attrs['textAlign'] = $alignment === 'both' ? 'justify' : $alignment;
+        }
+
+        foreach ([
+            'first_line_indent' => 'firstLineIndent',
+            'left_indent' => 'leftIndent',
+            'hanging_indent' => 'hangingIndent',
+        ] as $sourceKey => $attrName) {
+            $value = $node->attribute($sourceKey);
+
+            if (is_numeric($value)) {
+                $attrs[$attrName] = (int) $value;
+            }
+        }
+
+        return $attrs;
     }
 
     /** @return array<int, array<string, mixed>>|null */
