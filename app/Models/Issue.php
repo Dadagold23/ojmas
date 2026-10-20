@@ -10,13 +10,15 @@ class Issue extends Model
     use HasFactory;
 
     protected $fillable = [
-    'volume_id',
-    'issue_no',
-    'title',
-    'status',
-    'published_on',
-    'description',
-];
+        'volume_id',
+        'issue_no',
+        'title',
+        'status',
+        'published_on',
+        'description',
+        'pdf_path',
+        'slug',
+    ];
 
 
     protected function casts(): array

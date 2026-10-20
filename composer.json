@@ -1,23 +1,24 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "OJMAS_Journal/OJMAS_Journal",
+    "name": "ojmas-journal/ojmas-journal",
     "type": "project",
     "description": "The skeleton application for the OJMAS_Journal framework.",
     "keywords": ["OJMAS_Journal", "framework"],
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "barryvdh/OJMAS_Journal-dompdf": "^3.1",
-        "OJMAS_Journal/framework": "^12.0",
-        "OJMAS_Journal/tinker": "^2.10.1",
-        "spatie/OJMAS_Journal-permission": "^6.25"
+        "barryvdh/laravel-dompdf": "^3.1",
+        "laravel/framework": "^12.0",
+        "laravel/tinker": "^2.10.1",
+        "phpoffice/phpword": "^1.3",
+        "spatie/laravel-permission": "^6.25"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
-        "OJMAS_Journal/breeze": "^2.4",
-        "OJMAS_Journal/pail": "^1.2.2",
-        "OJMAS_Journal/pint": "^1.24",
-        "OJMAS_Journal/sail": "^1.41",
+        "laravel/breeze": "^2.4",
+        "laravel/pail": "^1.2.2",
+        "laravel/pint": "^1.24",
+        "laravel/sail": "^1.41",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.6",
         "phpunit/phpunit": "^11.5.50"

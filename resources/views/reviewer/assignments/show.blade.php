@@ -111,9 +111,16 @@
                     </select>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label fw-semibold small">Comments <span class="text-danger">*</span></label>
-                    <textarea name="comments" rows="6" class="form-control form-control-sm"
-                              placeholder="Provide detailed review comments..." required></textarea>
+                    <label class="form-label fw-semibold small">Comments for the Author <span class="text-danger">*</span></label>
+                    <textarea name="comments_for_author" rows="6" class="form-control form-control-sm"
+                              placeholder="Your detailed comments for the author..." required></textarea>
+                    <div class="form-text">These comments are shown to the author and form the basis of any revision request.</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">Confidential Comments for the Editor</label>
+                    <textarea name="comments_for_editor" rows="3" class="form-control form-control-sm"
+                              placeholder="Optional. Visible only to the editorial team, never to the author."></textarea>
+                    <div class="form-text">Confidential: this section is never shown to the author.</div>
                 </div>
                 <button class="btn btn-primary fw-semibold">
                     <i class="bi bi-send me-2"></i>Submit Review

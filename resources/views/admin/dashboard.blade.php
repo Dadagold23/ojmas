@@ -73,6 +73,12 @@
             <a href="{{ route('admin.users.index') }}" class="btn btn-primary btn-sm fw-semibold">
                 <i class="bi bi-people me-1"></i>Manage Users
             </a>
+            <a href="{{ route('editor.volumes.index') }}" class="btn btn-info btn-sm fw-semibold text-white">
+                <i class="bi bi-journal-bookmark me-1"></i>Volumes
+            </a>
+            <a href="{{ route('editor.issues.index') }}" class="btn btn-secondary btn-sm fw-semibold">
+                <i class="bi bi-journals me-1"></i>Issues
+            </a>
             <a href="{{ route('admin.publications.index') }}" class="btn btn-success btn-sm fw-semibold">
                 <i class="bi bi-journal-check me-1"></i>Publications
             </a>

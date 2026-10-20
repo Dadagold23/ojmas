@@ -10,7 +10,7 @@ class ActivityLog extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'action', 'module', 'meta',
+        'user_id', 'action', 'module', 'meta', 'loggable_type', 'loggable_id',
     ];
 
     protected function casts(): array

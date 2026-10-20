@@ -29,11 +29,11 @@ class AdminUserSeeder extends Seeder
 
         // ✅ ADMIN USER
         $admin = User::firstOrCreate(
-            ['email' => 'admin@ojmas.test'],
+            ['email' => 'admin@ojmaspublish.online'],
             [
                 'name' => 'OJMAS Super Admin',
                 'phone' => '08000000000',
-                'institution' => 'OJMAS',
+                'institution' => 'OJMAS Journal',
                 'country' => 'Nigeria',
                 'role' => 'Super Admin',
                 'password' => Hash::make('password123'),
@@ -46,7 +46,7 @@ class AdminUserSeeder extends Seeder
 
         // ✅ EDITOR USER
         $editor = User::firstOrCreate(
-            ['email' => 'editor@ojmas.test'],
+            ['email' => 'editor@ojmaspublish.online'],
             [
                 'name' => 'Journal Editor',
                 'role' => 'Editor',
@@ -60,7 +60,7 @@ class AdminUserSeeder extends Seeder
 
         // ✅ AUTHOR USER
         $author = User::firstOrCreate(
-            ['email' => 'author@ojmas.test'],
+            ['email' => 'author@ojmaspublish.online'],
             [
                 'name' => 'Test Author',
                 'role' => 'Author',
@@ -72,6 +72,6 @@ class AdminUserSeeder extends Seeder
         $author->assignRole('Author');
         $author->syncLegacyRoleColumn('Author');
 
-        $user = \App\Models\User::where('email', 'test@ojmas.test')->first(); $user?->getRoleNames();
+        $user = \App\Models\User::where('email', 'test@ojmaspublish.online')->first(); $user?->getRoleNames();
     }
 }

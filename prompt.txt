@@ -1,0 +1,564 @@
+# MASTER AI CODING AGENT PROMPT
+## OJMAS Journal — APA 7 Automated Formatting & Integrated Editorial Workspace
+
+**Project:** Offa Journal of Multidisciplinary and Advanced Studies (OJMAS Journal)  
+**Website:** https://ojmaspublish.online  
+**Framework:** Existing Laravel application  
+**Primary objective:** Implement an automated APA 7 manuscript formatting system and an integrated browser-based editorial workspace for authors, reviewers, editors, and managing editors.
+
+---
+
+## 1. Your Role and Responsibilities
+
+Act as a senior Laravel software architect, scholarly publishing systems engineer, document-processing specialist, collaborative-editor integration engineer, database architect, security engineer, and quality assurance lead.
+
+Your assignment is to enhance the existing OJMAS Journal application with two integrated capabilities:
+
+1. **Automated APA 7 manuscript formatting and validation.**
+2. **An integrated online manuscript editing and peer-review workspace** that eliminates routine dependence on downloading manuscripts to local computers, editing them in external applications, and exchanging revisions through email or messaging platforms.
+
+You must work within the existing application and preserve all functioning features.
+
+Do not begin by generating a new application or replacing the current system.
+
+## 2. Existing Application Constraints
+
+The application has previously been developed using Laravel 12, PHP 8.2, Spatie role and permission management, Paystack payment integration, and DomPDF.
+
+These details are the starting assumptions. Inspect the actual codebase and verify the installed versions, database schema, routes, middleware, permissions, manuscript models, file storage, and current editorial workflow before making changes.
+
+The system already has the following intended roles:
+
+- Super Admin
+- Admin
+- Editor
+- Reviewer
+- Author
+
+The new system must also support Managing Editor responsibilities. Determine whether this role already exists. If it does not, implement it consistently with the existing authorization architecture without duplicating permissions or breaking existing accounts.
+
+Preserve the current journal identity, configuration, branding, authentication, registration, payment processes, submission records, publication records, and administrative functions.
+
+Do not assume that a feature is absent merely because you have not inspected it.
+
+## 3. Non-Negotiable Development Rules
+
+Follow these rules throughout the implementation.
+
+1. Work in the existing project directory and follow its established architecture.
+2. Never replace the entire application, recreate the database, or perform a destructive migration.
+3. Never delete existing records, uploaded manuscripts, user accounts, payment records, or publication metadata.
+4. Never expose credentials, environment variables, payment secrets, or confidential manuscript data.
+5. Do not install unnecessary packages or introduce competing document editors.
+6. Evaluate the available document-editing solutions before selecting one.
+7. Use backward-compatible migrations and preserve existing database relationships.
+8. Enforce authorization on the server side, not merely by hiding buttons in the interface.
+9. Do not fabricate bibliographic information or silently alter an author's research findings.
+10. Do not use AI-generated text as a substitute for deterministic formatting rules.
+11. Test each module before reporting completion.
+12. Stop at the end of each module and wait for my explicit approval before beginning the next.
+
+If you encounter an architectural conflict, missing dependency, licensing restriction, hosting limitation, or significant implementation decision, explain the issue and recommend a solution before proceeding.
+
+**Approval protocol:** You are not authorized to proceed to the next module until I explicitly approve the completed module.
+
+---
+
+# MODULE 0 — EXISTING SYSTEM AUDIT
+
+This is the only module you may execute immediately.
+
+### Objectives
+
+Inspect the current application and produce an implementation plan based on verified findings.
+
+### Required inspections
+
+- Laravel and PHP versions.
+- Existing routes, controllers, middleware, services, jobs, events, and policies.
+- Authentication and Spatie role/permission configuration.
+- Manuscript submission models, tables, and file relationships.
+- Editorial assignments and reviewer workflows.
+- Existing comments, revision requests, decision records, and versioning.
+- Storage disks, uploaded-file handling, and private-file access.
+- Existing PDF/DOCX generation or document-processing libraries.
+- Existing notification and email systems.
+- Current deployment and hosting limitations.
+- Existing tests and application logs.
+- Current manuscript download, upload, and revision procedures.
+
+### Required deliverables
+
+Produce:
+
+1. A concise architecture audit.
+2. A list of existing components that can be reused.
+3. A list of missing capabilities.
+4. A database change proposal.
+5. A document-editor technology comparison.
+6. A DOCX parsing and generation strategy.
+7. A security and reviewer-confidentiality assessment.
+8. A hosting and deployment compatibility assessment.
+9. A phased implementation plan with acceptance criteria.
+10. A list of unresolved decisions requiring my approval.
+
+Do not modify production code or database structures during the audit.
+
+**Acceptance criteria:** The audit must identify the actual project structure and distinguish verified facts from assumptions. Wait for my approval before implementing Module 1.
+
+---
+
+# MODULE 1 — MANUSCRIPT INGESTION AND APA 7 FORMATTING ENGINE
+
+## 1.1 Objective
+
+Build a manuscript-processing service that accepts a submitted document, identifies its structure, applies supported APA 7 formatting rules, and produces a formatted manuscript with a transparent validation report.
+
+Prioritize Microsoft Word DOCX input and DOCX output. PDF may be supported for text extraction or reference purposes, but must not be treated as equivalent to an editable source document.
+
+## 1.2 Document ingestion
+
+Implement:
+
+- Secure DOCX upload.
+- File-type, file-size, and content validation.
+- Protection against malicious uploads and archive-based attacks.
+- Private storage of the original manuscript.
+- Preservation of the original file and its checksum.
+- Processing status and error reporting.
+- Safe extraction of document structure.
+- Clear handling of scanned PDFs, unsupported documents, and corrupted files.
+
+Never overwrite the original submission during formatting.
+
+## 1.3 Structural recognition
+
+Where supported by the source document, identify:
+
+- Manuscript title.
+- Author names and affiliations.
+- Corresponding-author information.
+- Abstract and keywords.
+- Main body sections and heading levels.
+- In-text citations.
+- Reference list.
+- Tables and table notes.
+- Figures, captions, and alternative text where available.
+- Footnotes and endnotes.
+- Appendices.
+- Equations and mathematical notation.
+- Acknowledgments, funding statements, and conflict-of-interest declarations.
+- Data availability and other relevant research declarations.
+
+Do not silently discard content that the parser cannot recognize. Flag unsupported or uncertain elements for review.
+
+## 1.4 APA 7 formatting rules
+
+Implement a versioned, testable rule set for applicable APA 7 requirements, including:
+
+- Page dimensions and margins.
+- Approved font choices and sizes.
+- Line spacing and paragraph indentation.
+- Page numbering.
+- Title-page layout.
+- Heading levels.
+- Paragraph formatting.
+- In-text citation presentation.
+- Reference-list formatting and hanging indentation.
+- DOI and URL presentation.
+- Table and figure numbering, titles, notes, and placement.
+- Appendix presentation.
+- Appropriate capitalization, italics, punctuation, and spacing.
+
+Distinguish between APA 7 student-paper conventions, professional-paper conventions, and journal-specific submission requirements.
+
+Configure the correct manuscript profile for OJMAS rather than blindly imposing student-paper rules on every journal submission.
+
+Maintain a separate configurable OJMAS style profile for any journal-specific requirements that differ from APA 7.
+
+## 1.5 Citation and reference validation
+
+Build a validation service that can:
+
+- Identify citations without corresponding reference entries.
+- Identify reference entries that appear uncited.
+- Detect inconsistent author names and publication years.
+- Flag incomplete bibliographic details.
+- Identify potentially duplicated references.
+- Detect malformed DOI and URL entries.
+- Identify citation patterns that require manual examination.
+
+Where a trusted bibliographic service is available and authorized, allow external metadata verification.
+
+Never invent missing authors, titles, publication dates, DOIs, page ranges, or publication details. Distinguish verified metadata from unverified suggestions.
+
+Do not claim that a citation supports a research statement merely because its reference exists.
+
+## 1.6 Validation report and preview
+
+Generate a report containing:
+
+- Formatting issues corrected automatically.
+- Issues that require author intervention.
+- Bibliographic information that could not be verified.
+- Content that could not be safely converted.
+- Warnings about possible layout changes.
+- Processing errors, if any.
+
+Provide a preview of the formatted manuscript and allow the author to download the formatted DOCX.
+
+Require the author to inspect and approve the formatted submission before it proceeds into the editorial workflow, unless the existing journal policy explicitly provides another approved procedure.
+
+## 1.7 Module 1 acceptance criteria
+
+- The original document remains unchanged.
+- The formatted DOCX opens successfully in compatible word processors.
+- Tables, images, equations, references, and headings are preserved or explicitly flagged.
+- Formatting rules are tested against representative sample documents.
+- Validation reports accurately distinguish errors from warnings.
+- Unsupported content is not silently deleted.
+- No manuscript is automatically accepted or rejected based solely on formatting results.
+
+Stop after delivering the implementation, test results, known limitations, and demonstration. Wait for my approval.
+
+---
+
+# MODULE 2 — INTEGRATED BROWSER-BASED MANUSCRIPT WORKSPACE
+
+## 2.1 Objective
+
+Implement an in-browser editorial workspace that enables authorized users to inspect, edit, comment on, and manage manuscripts without routinely downloading files to their computers.
+
+Evaluate established technologies such as CKEditor 5, Tiptap, and ONLYOFFICE Docs against the project's actual requirements.
+
+Before choosing a technology, verify:
+
+- DOCX import and export fidelity.
+- Support for tracked changes.
+- Contextual comments and annotations.
+- Version history.
+- Concurrent editing, if required.
+- Tables, equations, figures, footnotes, and references.
+- Self-hosting compatibility.
+- Licensing and commercial-use restrictions.
+- Resource requirements and hosting compatibility.
+- Integration with Laravel authentication and authorization.
+
+Do not install multiple competing editors. Present your recommendation and wait for approval if the choice introduces significant costs, external services, or infrastructure requirements.
+
+## 2.2 Workspace interface
+
+Create a professional, responsive workspace containing:
+
+- Manuscript title and unique submission identifier.
+- Current editorial stage and document version.
+- Main document editing area.
+- Contextual comment panel.
+- Revision and change-tracking controls.
+- Version-history panel.
+- Save status and processing indicators.
+- Editorial instructions and relevant deadlines.
+- Authorized actions for the current role.
+
+Provide autosave where reliable, visible save confirmation, recovery from failed requests, and protection against accidental data loss.
+
+Autosave must not overwrite newer edits from another user without detecting and resolving the conflict.
+
+## 2.3 Collaborative editing
+
+Implement the capabilities supported by the selected editor:
+
+- Edit authorized manuscript content in the browser.
+- Add comments to selected text.
+- Reply to comments.
+- Resolve and reopen comments.
+- Record insertions and deletions.
+- Review and accept or reject tracked changes where authorized.
+- Compare manuscript versions.
+- Restore an authorized previous version.
+- Preserve author revisions and editorial annotations.
+
+Where the chosen editor cannot provide native collaborative editing or reliable track changes, implement a tested alternative or clearly document the limitation. Do not claim real-time collaboration if the application only supports sequential editing.
+
+## 2.4 Document export
+
+Support exporting the manuscript to DOCX with appropriate preservation of:
+
+- Paragraphs and headings.
+- Citations and references.
+- Tables and figures.
+- Captions and notes.
+- Track changes and comments where the selected format and editor support them.
+
+Generate publication PDFs separately from the approved manuscript using the journal's production pipeline. Do not assume DomPDF can faithfully convert arbitrary DOCX documents; select and test a suitable conversion method.
+
+## 2.5 Module 2 acceptance criteria
+
+- Authorized users can open manuscripts in the browser.
+- Editing and saving persist reliably.
+- Comments remain associated with the correct manuscript and text where supported.
+- Version history records meaningful changes.
+- Concurrent edits do not silently destroy another user's work.
+- DOCX import and export are tested with representative complex documents.
+- Unauthorized users cannot access or modify protected manuscripts.
+
+Stop and wait for my approval.
+
+---
+
+# MODULE 3 — ROLE-BASED EDITORIAL WORKSPACE
+
+## 3.1 Author permissions
+
+Authors must be able to:
+
+- View their own submissions and permitted editorial feedback.
+- Inspect formatting and validation reports.
+- Respond to revision requests.
+- Edit and resubmit manuscripts when a revision window is open.
+- View revision deadlines and submission status.
+- Compare their submitted and revised versions.
+- Download their own permitted manuscript files.
+
+Authors must not be able to alter reviewer reports, editorial decisions, confidential notes, or the audit trail.
+
+## 3.2 Reviewer permissions
+
+Reviewers must be able to:
+
+- Access only manuscripts assigned to them.
+- Read the manuscript and relevant supplementary materials.
+- Add comments and annotations.
+- Submit confidential reviewer reports.
+- Recommend a decision using the journal's configured options.
+- Save drafts of their reviews.
+- Submit their final review.
+
+Reviewers must not be able to publish manuscripts, change editorial decisions, access unrelated submissions, or see confidential information belonging to other reviewers unless the journal's policy explicitly permits it.
+
+## 3.3 Editor permissions
+
+Editors must be able to:
+
+- View manuscripts assigned to them.
+- Inspect reviewer recommendations.
+- Add editorial comments.
+- Request revisions.
+- Communicate editorial decisions through the journal system.
+- Manage the manuscript's progress.
+- Edit the manuscript only where the workflow authorizes it.
+- Compare versions and inspect the audit history.
+
+Editors must not silently overwrite the original submission or modify a reviewer's submitted report.
+
+## 3.4 Managing Editor permissions
+
+Provide appropriate controls for:
+
+- Coordinating manuscript assignments.
+- Monitoring editorial deadlines.
+- Managing revision rounds.
+- Tracking reviewer invitations and responses.
+- Monitoring manuscripts awaiting decisions.
+- Coordinating copyediting and proof approval.
+- Identifying delayed manuscripts.
+- Viewing workflow reports.
+
+The Managing Editor role must not automatically inherit unrestricted Super Admin privileges.
+
+## 3.5 Super Admin permissions
+
+Preserve the existing administrative system and provide appropriately protected configuration controls for:
+
+- Role and permission management.
+- Journal formatting profiles.
+- Editorial workflow settings.
+- Document-processing settings.
+- Retention policies and system configuration.
+- Audit and operational reports.
+
+## 3.6 Security requirements
+
+Implement and test:
+
+- Server-side authorization policies.
+- Private document storage.
+- Secure file delivery.
+- Protection against insecure direct object references.
+- CSRF protection and input validation.
+- Appropriate XSS prevention for manuscript content and comments.
+- Rate limiting where necessary.
+- Secure session and authentication handling.
+- Auditing of sensitive document access and changes.
+
+For anonymous or double-anonymous peer review, prevent unintended disclosure of author and reviewer identities through the interface, document metadata, file names, comments, notifications, and downloadable documents where applicable.
+
+Do not assume that hiding a name in the interface makes a document anonymous.
+
+## 3.7 Module 3 acceptance criteria
+
+Test each role using actual authorization checks and representative accounts. Demonstrate both permitted and forbidden actions.
+
+Stop and wait for my approval.
+
+---
+
+# MODULE 4 — EDITORIAL WORKFLOW AND VERSION MANAGEMENT
+
+Implement a configurable manuscript lifecycle with stages such as:
+
+1. Draft or initial submission.
+2. Formatting and technical validation.
+3. Editorial screening.
+4. Reviewer assignment and invitation.
+5. Peer review.
+6. Editorial decision.
+7. Author revision.
+8. Further review where required.
+9. Acceptance or rejection.
+10. Copyediting.
+11. Proofreading and author approval.
+12. Final production and publication.
+
+The exact stages must remain configurable to accommodate the existing OJMAS process.
+
+Implement:
+
+- Revision-round tracking.
+- Submission status transitions.
+- Decision history.
+- Reviewer deadlines and reminders.
+- Author responses to reviewer comments.
+- Notifications through the existing notification architecture.
+- Role-appropriate dashboards.
+- Workflow activity logs.
+- Manuscript version comparison.
+- Recovery of previous versions.
+- Protection against unauthorized state transitions.
+
+Do not allow a manuscript to be published simply because an editor has finished editing it. Publication must follow the required editorial approvals.
+
+Preserve existing manuscript IDs, DOI or other publication identifiers where applicable, payment records, and existing published article URLs.
+
+### Module 4 acceptance criteria
+
+Demonstrate the entire workflow using test manuscripts and test accounts. Confirm that permissions, notifications, deadlines, revision rounds, and decision history work as intended.
+
+Stop and wait for my approval.
+
+---
+
+# MODULE 5 — INTEGRATION, QUALITY ASSURANCE, AND DEPLOYMENT
+
+## 5.1 Integration
+
+Integrate the new capabilities into the existing OJMAS application without duplicating submission records or creating conflicting sources of truth.
+
+Reuse existing models and services where appropriate.
+
+Ensure that the formatting engine, browser editor, reviewer workspace, editorial workflow, notifications, and final publication process use consistent manuscript and version identifiers.
+
+Preserve the existing payment and publication systems. Do not modify payment processing unless a verified integration requirement makes it necessary and I approve the change.
+
+## 5.2 Testing requirements
+
+Implement appropriate automated and manual tests for:
+
+- DOCX upload and processing.
+- APA 7 formatting rules.
+- Citation and reference validation.
+- Document preservation.
+- DOCX export and PDF production.
+- Autosave and recovery.
+- Concurrent editing conflicts.
+- Comments and tracked changes.
+- Version comparison and restoration.
+- Role-based access.
+- Reviewer anonymity.
+- Editorial decisions and workflow transitions.
+- Notifications.
+- Existing authentication and submission functionality.
+- Existing payment and publication functionality.
+
+Use realistic sample manuscripts containing tables, images, references, citations, equations, and complex formatting.
+
+Never use confidential author manuscripts for testing without authorization.
+
+## 5.3 Deployment requirements
+
+Before deployment:
+
+- Back up relevant application files and database records.
+- Document new dependencies and their licenses.
+- Prepare reversible database migrations.
+- Verify production PHP extensions and hosting capabilities.
+- Test storage permissions and private file access.
+- Configure queues and scheduled tasks only where supported and necessary.
+- Document any external services, credentials, DNS, or infrastructure requirements.
+- Provide rollback instructions.
+- Avoid destructive commands and production migrations without explicit approval.
+
+Do not claim successful production deployment if only local tests have passed.
+
+## 5.4 Final deliverables
+
+Provide:
+
+1. Implementation summary.
+2. Files created or modified.
+3. Database migrations and rollback procedures.
+4. New dependencies and licensing considerations.
+5. Configuration requirements.
+6. Automated test results.
+7. Manual acceptance-test results.
+8. Known limitations.
+9. Security considerations.
+10. Deployment instructions.
+11. Administrator and editorial-user instructions.
+12. A demonstration of the complete manuscript lifecycle.
+
+Report failures honestly. Never claim a test passed unless it was actually executed and passed.
+
+---
+
+# 4. Final Acceptance Standard
+
+The project will be considered complete only when all of the following are demonstrated:
+
+- An author can submit a manuscript and receive an APA 7 formatting and validation report.
+- The original manuscript is preserved.
+- The author can inspect and approve the formatted document.
+- Authorized editorial users can work on manuscripts inside the browser.
+- Comments, revisions, and version history are maintained reliably.
+- Reviewer confidentiality and role-specific permissions are enforced.
+- The editorial workflow can manage revisions through to final publication.
+- DOCX and PDF outputs are tested for acceptable fidelity.
+- Existing OJMAS features continue to function.
+- The implementation has documented tests, limitations, and deployment instructions.
+
+# 5. Mandatory First Response From the Coding Agent
+
+Begin with **Module 0 only**.
+
+Inspect the actual project and report:
+
+A. Verified architecture and environment.  
+B. Existing submission and editorial workflow.  
+C. Existing role and permission implementation.  
+D. Document-processing and editor technologies available.  
+E. Recommended implementation architecture.  
+F. Proposed database changes.  
+G. Security and confidentiality risks.  
+H. Hosting and licensing implications.  
+I. Module 1 implementation plan and acceptance tests.  
+J. Decisions requiring my approval.
+
+Do not modify source code during Module 0.
+
+Finish your response by explicitly asking:
+
+**“Module 0 audit is complete. Do you approve this architecture and authorize implementation of Module 1: Manuscript Ingestion and APA 7 Formatting Engine?”**
+
+Wait for my approval before proceeding.
+
+**End of master prompt.**

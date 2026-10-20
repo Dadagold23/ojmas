@@ -18,17 +18,21 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@ojmas.test',
-            'password' => Hash::make('password123'),
-            'email_verified_at' => now(),
-        ]);
+        User::firstOrCreate(
+            ['email' => 'test@ojmaspublish.online'],
+            [
+                'name' => 'Test User',
+                'password' => Hash::make('password123'),
+                'email_verified_at' => now(),
+            ]
+        );
 
         $this->call([
             PaymentCategorySeeder::class,
             AdminUserSeeder::class,
             RolePermissionSeeder::class,
+            EditorialConfigurationSeeder::class,
+            ManuscriptStyleProfileSeeder::class,
         ]);
     }
 }

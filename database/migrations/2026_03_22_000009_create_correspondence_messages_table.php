@@ -14,6 +14,9 @@ return new class extends Migration {
             $table->foreignId('recipient_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('subject');
             $table->longText('message');
+            $table->string('type')->nullable();
+            $table->string('recipient_email')->nullable();
+            $table->string('status')->nullable();
             $table->timestamp('sent_at')->nullable();
             $table->timestamps();
         });

@@ -6,12 +6,11 @@
     RewriteEngine On
 
     # Canonical production host.
-    RewriteCond %{HTTP_HOST} !(localhost|127\.0\.0\.1)(:\d+)?$ [NC]
     RewriteCond %{HTTP_HOST} ^www\.ojmaspublish\.online$ [NC]
     RewriteRule ^ https://ojmaspublish.online%{REQUEST_URI} [L,R=301,NE]
 
-    # Force HTTPS unless SSL was already terminated upstream.
-    RewriteCond %{HTTP_HOST} !(localhost|127\.0\.0\.1)(:\d+)?$ [NC]
+    # Force HTTPS on the production domain unless SSL was already terminated upstream.
+    RewriteCond %{HTTP_HOST} ^(?:www\.)?ojmaspublish\.online$ [NC]
     RewriteCond %{HTTPS} !=on
     RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
     RewriteRule ^ https://ojmaspublish.online%{REQUEST_URI} [L,R=301,NE]

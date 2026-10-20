@@ -51,6 +51,9 @@
             <div class="row align-items-center">
                 <div class="col-lg-8">
                     <span class="badge bg-light text-primary mb-3 px-3 py-2">Issue Management</span>
+                    <span class="badge bg-{{ $issue->status === 'published' ? 'success' : 'secondary' }} mb-3 px-3 py-2 ms-2">
+                        {{ ucfirst($issue->status) }}
+                    </span>
                     <h2 class="fw-bold mb-3">{{ $issue->title }}</h2>
                     <p class="mb-0 text-white-50">
                         @if($issue->volume)
@@ -61,7 +64,14 @@
                         @endif
                     </p>
                 </div>
-                <div class="col-lg-4 text-lg-end mt-4 mt-lg-0">
+                <div class="col-lg-4 text-lg-end mt-4 mt-lg-0 d-flex flex-wrap justify-content-lg-end gap-2">
+                    <form method="POST" action="{{ route('editor.issues.toggle-status', $issue->id) }}">
+                        @csrf
+                        <button type="submit" class="btn btn-warning fw-semibold">
+                            <i class="bi bi-send me-1"></i>
+                            {{ $issue->status === 'published' ? 'Set to Draft' : 'Publish Issue' }}
+                        </button>
+                    </form>
                     <a href="{{ route('editor.issues.index') }}" class="btn btn-outline-light">
                         Back to Issues
                     </a>
@@ -168,6 +178,49 @@
                             Attach Selected Articles
                         </button>
                     </form>
+                </div>
+            </div>
+
+            <!-- Compiled Journal PDF Upload Card -->
+            <div class="card panel-card mt-4" data-aos="fade-up" data-aos-delay="150">
+                <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+                    <h5 class="fw-bold mb-1">Compiled Journal PDF</h5>
+                    <p class="text-muted mb-3">Upload a single PDF containing all articles for this issue.</p>
+                </div>
+
+                <div class="card-body px-4 pb-4">
+                    @if($issue->pdf_path)
+                        <div class="alert alert-success d-flex align-items-center justify-content-between rounded-4 py-3 mb-0">
+                            <div>
+                                <i class="bi bi-file-earmark-pdf-fill fs-4 me-2 text-success"></i>
+                                <span class="fw-semibold">Journal PDF Uploaded</span>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <a href="{{ route('issue.pdf', $issue->id) }}" class="btn btn-sm btn-success" target="_blank">
+                                    <i class="bi bi-download"></i> Download
+                                </a>
+                                <form method="POST" action="{{ route('editor.issues.delete-pdf', $issue->id) }}" onsubmit="return confirm('Delete this compiled PDF?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i> Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    @else
+                        <form method="POST" action="{{ route('editor.issues.upload-pdf', $issue->id) }}" enctype="multipart/form-data">
+                            @csrf
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small">Upload Compiled PDF <span class="text-danger">*</span></label>
+                                <input type="file" name="compiled_pdf" class="form-control" accept=".pdf" required>
+                                <div class="form-text">PDF format only — max 40 MB</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-cloud-upload me-1"></i> Upload PDF
+                            </button>
+                        </form>
+                    @endif
                 </div>
             </div>
         </div>

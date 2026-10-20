@@ -39,6 +39,13 @@ return [
         'secret_key'     => env('PAYSTACK_SECRET_KEY'),
         'public_key'     => env('PAYSTACK_PUBLIC_KEY'),
         'webhook_secret' => env('PAYSTACK_WEBHOOK_SECRET', env('PAYSTACK_SECRET_KEY')),
+        'base_url'       => env('PAYSTACK_BASE_URL', 'https://api.paystack.co'),
+        'timeout'        => (int) env('PAYSTACK_TIMEOUT_SECONDS', 60),
+        'connect_timeout'=> (int) env('PAYSTACK_CONNECT_TIMEOUT_SECONDS', 30),
+        'retry_times'    => (int) env('PAYSTACK_RETRY_TIMES', 3),
+        'retry_delay'    => (int) env('PAYSTACK_RETRY_DELAY_MS', 800),
+        'force_ipv4'     => filter_var(env('PAYSTACK_FORCE_IPV4', true), FILTER_VALIDATE_BOOLEAN),
+        'verify_ssl'     => filter_var(env('PAYSTACK_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),
     ],
 
 

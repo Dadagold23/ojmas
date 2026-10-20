@@ -38,7 +38,17 @@ class IssueController extends Controller
             'description' => ['nullable', 'string'],
         ]);
 
-        Issue::create($validated);
+        $slug = \Illuminate\Support\Str::slug($validated['title']) . '-' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(4));
+
+        $issue = new Issue();
+        $issue->volume_id = $validated['volume_id'];
+        $issue->issue_no = (int) $validated['issue_no'];
+        $issue->title = $validated['title'];
+        $issue->status = $validated['status'];
+        $issue->published_on = $validated['published_on'] ?? ($validated['status'] === 'published' ? now() : null);
+        $issue->description = $validated['description'];
+        $issue->slug = $slug;
+        $issue->save();
 
         return redirect()
             ->route('editor.issues.index')
@@ -84,12 +94,10 @@ class IssueController extends Controller
                 ['submission_id' => $submission->id],
                 [
                     'issue_id' => $issue->id,
-                    'author_id' => $submission->author_id,
                     'title' => $submission->title,
-                    'slug' => $submission->slug,
+                    'slug' => $submission->slug ?: \Illuminate\Support\Str::slug($submission->title) . '-' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(5)),
                     'abstract' => $submission->abstract,
                     'keywords' => $submission->keywords,
-                    'subject_area' => $submission->subject_area,
                     'published_on' => $publishedAt,
                     'status' => 'published',
                 ]
@@ -103,9 +111,10 @@ class IssueController extends Controller
                 if (class_exists(SubmissionStatusHistory::class)) {
                     SubmissionStatusHistory::create([
                         'submission_id' => $submission->id,
-                        'from_status' => $oldStatus,
-                        'to_status' => 'published',
-                        'remarks' => "Submission attached to issue '{$issue->title}' and published.",
+                        'changed_by' => auth()->id(),
+                        'old_status' => $oldStatus,
+                        'new_status' => 'published',
+                        'note' => "Submission attached to issue '{$issue->title}' and published.",
                     ]);
                 }
             }
@@ -114,5 +123,50 @@ class IssueController extends Controller
         return redirect()
             ->route('editor.issues.show', $issue->id)
             ->with('success', 'Selected articles attached to issue successfully.');
+    }
+
+    public function uploadPdf(Request $request, Issue $issue): RedirectResponse
+    {
+        $validated = $request->validate([
+            'compiled_pdf' => ['required', 'file', 'mimes:pdf', 'max:40960'], // 40 MB max
+        ]);
+
+        if ($issue->pdf_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($issue->pdf_path);
+        }
+
+        $path = $request->file('compiled_pdf')->store('compiled_journals', 'public');
+
+        $issue->update([
+            'pdf_path' => $path,
+        ]);
+
+        return redirect()
+            ->route('editor.issues.show', $issue->id)
+            ->with('success', 'Compiled journal PDF uploaded successfully.');
+    }
+
+    public function deletePdf(Issue $issue): RedirectResponse
+    {
+        if ($issue->pdf_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($issue->pdf_path);
+            $issue->update([
+                'pdf_path' => null,
+            ]);
+        }
+
+        return redirect()
+            ->route('editor.issues.show', $issue->id)
+            ->with('success', 'Compiled journal PDF deleted successfully.');
+    }
+
+    public function toggleStatus(Issue $issue): RedirectResponse
+    {
+        $newStatus = $issue->status === 'published' ? 'draft' : 'published';
+        $issue->update(['status' => $newStatus]);
+
+        return redirect()
+            ->back()
+            ->with('success', "Issue status updated to '{$newStatus}' successfully.");
     }
 }

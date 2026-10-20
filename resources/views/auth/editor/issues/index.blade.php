@@ -52,12 +52,22 @@
                                 <td>{{ $issue->title }}</td>
                                 <td>{{ $issue->published_on?->format('d M Y') ?? '-' }}</td>
                                 <td>
-                                    <span class="badge bg-success">{{ ucfirst($issue->status ?? 'draft') }}</span>
+                                    <span class="badge bg-{{ $issue->status === 'published' ? 'success' : 'secondary' }}">
+                                        {{ ucfirst($issue->status ?? 'draft') }}
+                                    </span>
                                 </td>
                                 <td class="pe-4">
-                                    <a href="{{ route('editor.issues.show', $issue->id) }}" class="btn btn-sm btn-outline-primary">
-                                        Open
-                                    </a>
+                                    <div class="d-flex gap-2">
+                                        <form method="POST" action="{{ route('editor.issues.toggle-status', $issue->id) }}">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                                {{ $issue->status === 'published' ? 'Set Draft' : 'Publish' }}
+                                            </button>
+                                        </form>
+                                        <a href="{{ route('editor.issues.show', $issue->id) }}" class="btn btn-sm btn-outline-primary">
+                                            Open
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                         @empty

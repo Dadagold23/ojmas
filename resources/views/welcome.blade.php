@@ -332,8 +332,7 @@
         <div class="container hero-content">
             <div class="row align-items-center g-5">
                 <div class="col-lg-7">
-                    <span class="hero-badge" data-aos="fade-up">ISSN: {{ $journalHighlights['issn'] }} • Quarterly
-                        Journal</span>
+                    <span class="hero-badge" data-aos="fade-up">P-ISSN: {{ $journalHighlights['p_issn'] }} • <a href="{{ route('archives') }}" class="text-white text-decoration-underline">E-ISSN: {{ $journalHighlights['e_issn'] }}</a> • Quarterly Journal</span>
                     <h1 class="hero-title mb-4" data-aos="fade-up" data-aos-delay="100">
                         Offa Journal of Multidisciplinary and Advanced Studies
                     </h1>
@@ -844,6 +843,7 @@
             <div class="row g-3 align-items-center">
                 <div class="col-lg-6">
                     <p class="mb-2">&copy; {{ date('Y') }} OJMAS. All rights reserved.</p>
+                    <p class="mb-1 small">P-ISSN: 3121-7508 | E-ISSN: 3156-5182</p>
                     <p class="mb-3 small">License: {{ $journalHighlights['license_version'] }}</p>
                     <div class="d-flex align-items-center gap-3">
                         <a href="#" class="text-decoration-none text-light" aria-label="Facebook">

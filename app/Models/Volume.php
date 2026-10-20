@@ -10,11 +10,13 @@ class Volume extends Model
     use HasFactory;
 
     protected $fillable = [
-    'title',
-    'year',
-    'status',
-    'description',
-];
+        'title',
+        'year',
+        'status',
+        'description',
+        'slug',
+        'volume_no',
+    ];
 
 
     public function issues()

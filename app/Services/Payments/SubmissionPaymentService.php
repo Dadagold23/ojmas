@@ -88,11 +88,15 @@ class SubmissionPaymentService
             ->first();
 
         if ($payment) {
+            // Paystack treats a reference as single-use: re-initialising with an
+            // already-used reference fails with "Duplicate Transaction Reference".
+            // A retry therefore always gets a fresh reference.
             $payment->update([
                 'status' => 'pending',
                 'amount' => $amount,
                 'currency' => $currency,
                 'gateway' => 'paystack',
+                'reference' => 'PAY-' . strtoupper(Str::random(10)),
             ]);
 
             if ($payment->invoice) {

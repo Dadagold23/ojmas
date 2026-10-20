@@ -14,6 +14,7 @@ return new class extends Migration {
             $table->unsignedInteger('volume_no');
             $table->year('year');
             $table->text('description')->nullable();
+            $table->enum('status', ['draft', 'published'])->default('draft');
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });

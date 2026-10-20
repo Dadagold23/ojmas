@@ -176,7 +176,7 @@ class SubmissionController extends Controller
             return redirect($paymentResult['authorization_url']);
         }
 
-        return redirect()->to(route('author.submissions.show', $submission, false))
+        return redirect()->to(route('author.submissions.show', $submission))
             ->with('pay', true)
             ->with('warning', 'Manuscript submitted successfully, but automatic payment redirect could not start. Please complete the vetting fee payment below.')
             ->with('error', $paymentResult['message'] ?? 'We could not start your payment right now. Please try again.');

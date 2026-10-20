@@ -13,12 +13,32 @@ class ArticleFile extends Model
 
     protected $fillable = [
         'submission_id','file_type','original_name',
-        'file_path','mime_type','file_size'
+        'file_path','mime_type','file_size',
+        // Provenance and integrity columns added by the manuscript pipeline.
+        'sha256', 'is_anonymised', 'version_label', 'uploaded_by',
     ];
 
     public function submission()
     {
         return $this->belongsTo(Submission::class);
+    }
+
+    /**
+     * The immutable manuscript version captured from this file, if any.
+     */
+    public function manuscriptVersion()
+    {
+        return $this->hasOne(ManuscriptVersion::class, 'source_file_id');
+    }
+
+    public function uploader()
+    {
+        return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function isAnonymised(): bool
+    {
+        return (bool) $this->is_anonymised;
     }
 
     public function resolvedPrivatePath(): ?string

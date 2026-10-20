@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Reviewer;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SubmitReviewRequest;
 use App\Models\ArticleFile;
-use App\Models\Review;
 use App\Models\ReviewerAssignment;
 use App\Models\Submission;
+use App\Models\SubmissionStatusHistory;
+use App\Notifications\ReviewCompletedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -32,25 +34,31 @@ class AssignmentController extends Controller
         return view('reviewer.assignments.show', compact('assignment'));
     }
 
-    public function storeReview(Request $request, ReviewerAssignment $assignment)
+    public function storeReview(SubmitReviewRequest $request, ReviewerAssignment $assignment)
     {
-        abort_unless($assignment->reviewer_id === auth()->id() || auth()->user()->hasRole('Super Admin'), 403);
+        abort_unless($assignment->reviewer_id === auth()->id(), 403);
 
-        $validated = $request->validate([
-            'recommendation' => ['required', 'string'],
-            'comments'       => ['required', 'string'],
+        if ($assignment->review) {
+            return back()->with('error', 'You have already submitted a review for this manuscript.');
+        }
+
+        $review = $assignment->review()->create($request->validated());
+
+        $assignment->update(['status' => 'completed', 'responded_at' => now()]);
+
+        SubmissionStatusHistory::create([
+            'submission_id' => $assignment->submission_id,
+            'changed_by' => auth()->id(),
+            'old_status' => $assignment->submission?->status,
+            'new_status' => $assignment->submission?->status ?? 'under_review',
+            'note' => 'Reviewer submitted review with recommendation: '.$review->recommendation,
         ]);
 
-        Review::create([
-            'reviewer_assignment_id' => $assignment->id,
-            'submission_id'          => $assignment->submission_id ?? null,
-            'reviewer_id'            => auth()->id(),
-            'recommendation'         => $validated['recommendation'],
-            'comments'               => $validated['comments'],
-            'submitted_at'           => now(),
-        ]);
+        $editors = \App\Models\User::role(['Editor', 'Managing Editor', 'Managing Admin', 'Super Admin'])->get();
 
-        $assignment->update(['status' => 'completed']);
+        foreach ($editors as $editor) {
+            $editor->notify(new ReviewCompletedNotification($assignment));
+        }
 
         return redirect()
             ->route('reviewer.assignments.index')

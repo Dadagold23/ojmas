@@ -221,6 +221,51 @@
             </div>
             @endif
 
+            {{-- Reviewer reports (Module 0 finding B2: these were previously written but never rendered) --}}
+            @php $submittedReviews = $submission->reviewerAssignments->filter(fn ($a) => $a->review !== null && $a->review->status === 'submitted'); @endphp
+            @if($submittedReviews->isNotEmpty())
+            <div class="card panel-card mb-4" data-aos="fade-up">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold mb-3"><i class="bi bi-chat-square-text me-2 text-primary"></i>Reviewer Reports</h6>
+
+                    @foreach($submittedReviews as $assignment)
+                        <div class="border rounded-3 p-3 mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <span class="badge bg-{{ $assignment->review->recommendation === 'reject' ? 'danger' : ($assignment->review->recommendation === 'accept' ? 'success' : 'warning') }} me-1">
+                                        {{ $assignment->review->recommendationLabel() }}
+                                    </span>
+                                    <span class="text-muted" style="font-size:.8rem">
+                                        {{ $assignment->reviewer->name }} ·
+                                        {{ $assignment->review->submitted_at?->format('d M Y, H:i') }}
+                                    </span>
+                                </div>
+                                <span class="badge bg-light text-dark">Read-only</span>
+                            </div>
+
+                            <div class="small mb-2">
+                                <strong>For the author:</strong>
+                                <div class="text-muted" style="white-space: pre-line">{{ $assignment->review->comments_for_author }}</div>
+                            </div>
+
+                            @if($assignment->review->comments_for_editor)
+                                <details class="small">
+                                    <summary class="text-muted">Confidential comments for the editor</summary>
+                                    <div class="text-muted border-start ps-2 mt-1" style="white-space: pre-line">{{ $assignment->review->comments_for_editor }}</div>
+                                </details>
+                            @endif
+                        </div>
+                    @endforeach
+
+                    <div class="alert alert-light border rounded-3 small mb-0">
+                        <i class="bi bi-lock me-1"></i>
+                        Submitted reviews are part of the editorial record and cannot be edited by anyone,
+                        including editors. If a report needs correcting, ask the reviewer to withdraw and re-submit.
+                    </div>
+                </div>
+            </div>
+            @endif
+
         </div>
 
         {{-- Right column: Editorial Actions --}}

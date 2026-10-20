@@ -14,13 +14,49 @@ class ReviewerAssignment extends Model
         'reviewer_id',
         'due_date',
         'status',
+        'blind_code',
+        'round_id',
+        'invited_at',
+        'responded_at',
     ];
 
     protected function casts(): array
     {
         return [
             'due_date' => 'date',
+            'invited_at' => 'datetime',
+            'responded_at' => 'datetime',
         ];
+    }
+
+    public function invitations()
+    {
+        return $this->hasMany(ReviewerInvitation::class, 'submission_id', 'submission_id')
+            ->whereColumn('reviewer_invitations.reviewer_id', 'reviewer_assignments.reviewer_id');
+    }
+
+    public function round()
+    {
+        return $this->belongsTo(RevisionRound::class);
+    }
+
+    public function isOverdue(): bool
+    {
+        return $this->due_date !== null
+            && $this->due_date->isPast()
+            && ! in_array($this->status, ['completed', 'declined'], true);
+    }
+
+    /**
+     * The submitted review, if there is one.
+     *
+     * Drafts and withdrawn reviews are deliberately excluded so they cannot
+     * influence a decision.
+     */
+    public function submittedReview()
+    {
+        return $this->hasOne(Review::class)
+            ->where('status', Review::STATUS_SUBMITTED);
     }
 
     public function submission()
@@ -37,5 +73,4 @@ class ReviewerAssignment extends Model
     {
         return $this->hasOne(Review::class);
     }
-    
 }

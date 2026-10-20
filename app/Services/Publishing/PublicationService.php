@@ -10,8 +10,34 @@ use Illuminate\Support\Str;
 
 class PublicationService
 {
+    public function __construct(private PublicationReadinessService $readiness) {}
+
     public function publish(Submission $submission, int $issueId, ?string $pdfPath = null, ?string $note = null): Article
     {
+        // Module 4: publication may not follow merely from an editor finishing
+        // editing. The readiness gate refuses, constructively, until every
+        // required editorial approval is on record.
+        $assessment = $this->readiness->assess($submission);
+
+        if (! $assessment['ready']) {
+            $unmet = collect($assessment['requirements'])
+                ->filter(fn ($requirement) => ! $requirement['met'])
+                ->map(fn ($requirement) => $requirement['name'].' — '.$requirement['detail']);
+
+            \Illuminate\Support\Facades\DB::table('manuscript_workflow_events')->insert([
+                'submission_id' => $submission->id,
+                'actor_id' => auth()->id(),
+                'event' => 'publication_refused',
+                'reason' => $unmet->implode(' | '),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'readiness' => $unmet->all(),
+            ]);
+        }
+
         $article = Article::updateOrCreate(
             ['submission_id' => $submission->id],
             [

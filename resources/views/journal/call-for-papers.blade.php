@@ -8,7 +8,7 @@
     overflow: hidden;
     color: #fff;
     background: linear-gradient(135deg, rgba(15, 23, 42, .92), rgba(37, 99, 235, .9)),
-    url('{{ asset('images/journal/call-for-paper.png') }}') center center / cover no-repeat;
+    url('{{ asset($call["flyer"]) }}') center center / cover no-repeat;
     box-shadow: 0 25px 60px rgba(15, 23, 42, .2);
 }
 
@@ -49,7 +49,7 @@
                 <div class="col-lg-8">
                     <h1 class="fw-bold mb-3">Offa Journal of Multidisciplinary and Advanced Studies</h1>
                     <p class="mb-2 fs-5">{{ $call['tagline'] }}</p>
-                    <p class="mb-0 text-white-50">ISSN: {{ $call['issn'] }}</p>
+                    <p class="mb-0 text-white-50">P-ISSN: {{ $call['p_issn'] }} • E-ISSN: {{ $call['e_issn'] }}</p>
                 </div>
                 <div class="col-lg-4 text-lg-end mt-4 mt-lg-0">
                     <a href="{{ route('register') }}" class="btn btn-warning btn-lg px-4">
@@ -62,7 +62,7 @@
 
     <div class="row g-4 mb-4">
         <div class="col-lg-5" data-aos="fade-right">
-            <img src="{{ asset('images/journal/call-for-paper.png') }}" alt="OJMAS call for paper flyer"
+            <img src="{{ asset($call["flyer"]) }}" alt="OJMAS call for paper flyer"
                 class="cfp-image">
         </div>
         <div class="col-lg-7" data-aos="fade-left">
@@ -109,6 +109,13 @@
                         <li class="mb-3">{{ $item }}</li>
                         @endforeach
                     </ul>
+                    <div class="border rounded-4 p-4 bg-light mt-4">
+                        <h5 class="fw-bold mb-3">Payment Details</h5>
+                        <p class="mb-2"><strong>Vetting fee:</strong> {{ $call['payment']['vettingFee'] }}</p>
+                        <p class="mb-2"><strong>Account No:</strong> {{ $call['payment']['accountNo'] }}</p>
+                        <p class="mb-2"><strong>Bank:</strong> {{ $call['payment']['bank'] }}</p>
+                        <p class="mb-0"><strong>Account Name:</strong> {{ $call['payment']['accountName'] }}</p>
+                    </div>
                 </div>
             </div>
         </div>

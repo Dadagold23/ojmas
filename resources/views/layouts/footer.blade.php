@@ -35,6 +35,7 @@
             <div class="col-md-4">
                 <h6 class="text-white fw-bold">Contact</h6>
                 <p class="mb-1">Email: support@ojmaspublish.online</p>
+                <p class="mb-1">P-ISSN: 3121-7508 | E-ISSN: 3156-5182</p>
                 <p class="mb-0">License: Creative Commons Attribution 4.0 International License</p>
             </div>
         </div>

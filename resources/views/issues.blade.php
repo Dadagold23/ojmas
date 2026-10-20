@@ -20,7 +20,7 @@
             <div class="row align-items-center">
                 <div class="col-lg-8">
                     <h2 class="fw-bold mb-2">Browse All Issues</h2>
-                    <p class="mb-0 text-white-50">Explore published volumes and issues of the OJMAS.</p>
+                    <p class="mb-0 text-white-50">Explore published volumes and issues by name, issue number, volume number, article topic, or author.</p>
                 </div>
                 <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
                     <i class="bi bi-journals" style="font-size:5rem; opacity:.15"></i>
@@ -34,9 +34,9 @@
         <div class="card-body p-4">
             <form method="GET" action="{{ route('issues.index') }}" class="row g-3 align-items-end">
                 <div class="col-md-4">
-                    <label class="form-label small fw-semibold">Search</label>
+                    <label class="form-label small fw-semibold">Search Box 2</label>
                     <input type="text" name="q" class="form-control form-control-sm"
-                           placeholder="Issue title or number..." value="{{ $search ?? '' }}">
+                           placeholder="Search name, issue no, volume no, journal topic, author..." value="{{ $search ?? '' }}">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label small fw-semibold">Volume</label>

@@ -9,7 +9,7 @@ return new class extends Migration {
     {
         Schema::create('journal_settings', function (Blueprint $table) {
             $table->id();
-            $table->string('site_name')->default('OJMAS');
+            $table->string('site_name')->default('OJMAS Journal');
             $table->string('acronym')->nullable();
             $table->string('issn_print')->nullable();
             $table->string('issn_online')->nullable();

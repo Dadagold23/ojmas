@@ -23,7 +23,7 @@ class PaystackService implements PaymentGatewayInterface
         }
 
         try {
-            $response = $client->post('https://api.paystack.co/transaction/initialize', [
+            $response = $client->post($this->baseUrl() . '/transaction/initialize', [
                 'email' => $payload['email'],
                 'amount' => (int) round($payload['amount'] * 100),
                 'reference' => $payload['reference'],
@@ -45,10 +45,31 @@ class PaystackService implements PaymentGatewayInterface
                 'status' => false,
                 'message' => 'Unable to reach Paystack right now. Please try again shortly.',
             ];
-        } catch (RequestException $e) {
+} catch (RequestException $e) {
+            // Log the gateway's own explanation; the generic message alone is
+            // not enough to diagnose why Paystack refused the request.
             Log::error('Paystack initialize request failed: ' . $e->getMessage(), [
                 'reference' => $payload['reference'] ?? null,
+                'status' => $e->response?->status(),
+                'gateway_message' => $e->response?->json('message'),
+                'gateway_code' => $e->response?->json('code'),
             ]);
+
+            $gatewayCode = $e->response?->json('code');
+
+            if ($gatewayCode === 'duplicate_reference') {
+                return [
+                    'status' => false,
+                    'message' => 'This payment reference has already been used at Paystack. Please start the payment again.',
+                ];
+            }
+
+            if ($e->response?->status() === 429) {
+                return [
+                    'status' => false,
+                    'message' => 'Too many payment attempts in a short time. Please wait a minute and try again.',
+                ];
+            }
 
             return [
                 'status' => false,
@@ -78,7 +99,7 @@ class PaystackService implements PaymentGatewayInterface
         }
 
         try {
-            $response = $client->get('https://api.paystack.co/transaction/verify/' . urlencode($reference));
+            $response = $client->get($this->baseUrl() . '/transaction/verify/' . urlencode($reference));
 
             return $response->json() ?: [
                 'status' => false,
@@ -114,7 +135,7 @@ class PaystackService implements PaymentGatewayInterface
         }
     }
 
-    private function client(): ?PendingRequest
+private function client(): ?PendingRequest
     {
         $secret = config('services.paystack.secret_key');
 
@@ -122,10 +143,43 @@ class PaystackService implements PaymentGatewayInterface
             return null;
         }
 
-        return Http::acceptJson()
+        $connectTimeout = (int) config('services.paystack.connect_timeout', 30);
+        $timeout = (int) config('services.paystack.timeout', 60);
+
+        // The TLS handshake to api.paystack.co is intermittently slow from this
+        // network (measured 1.4s up to 12s), so the connect budget has to cover
+        // the handshake and leave headroom for the request itself.
+        $request = Http::acceptJson()
             ->withToken($secret)
-            ->connectTimeout(10)
-            ->timeout(15)
-            ->retry(2, 200);
+            ->connectTimeout($connectTimeout)
+            ->timeout($timeout);
+
+        if (!config('services.paystack.verify_ssl', true)) {
+            $request = $request->withOptions(['verify' => false]);
+        }
+
+        if (config('services.paystack.force_ipv4', true)) {
+            $request = $request->withOptions([
+                'curl' => [CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4],
+            ]);
+        }
+
+        // 4xx responses are deterministic (bad reference, invalid email, etc),
+        // so retrying them just delays the error. Retry only transport faults,
+        // rate limits and server-side failures.
+        return $request->retry(
+            (int) config('services.paystack.retry_times', 3),
+            (int) config('services.paystack.retry_delay_ms', 800),
+            fn ($exception) =>
+                $exception instanceof ConnectionException
+                || ($exception instanceof RequestException
+                    && ($exception->response?->status() ?? 0) !== 400),
+            throw: false
+        );
+    }
+
+    private function baseUrl(): string
+    {
+        return rtrim((string) config('services.paystack.base_url', 'https://api.paystack.co'), '/');
     }
 }

@@ -9,7 +9,7 @@
 
 <div class="container py-4" style="max-width:860px">
     <div class="d-flex align-items-center gap-3 mb-4" data-aos="fade-up">
-        <a href="{{ route('author.submissions.index', absolute: false) }}" class="btn btn-outline-secondary btn-sm">
+        <a href="{{ route('author.submissions.index') }}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left"></i>
         </a>
         <div>
@@ -24,7 +24,7 @@
     </div>
     @endif
 
-    <form method="POST" action="{{ route('author.submissions.store', absolute: false) }}" enctype="multipart/form-data">
+    <form method="POST" action="{{ route('author.submissions.store') }}" enctype="multipart/form-data">
         @csrf
 
         <div class="card panel-card mb-4" data-aos="fade-up">
@@ -101,7 +101,7 @@
         </div>
 
         <div class="d-flex gap-3 justify-content-end" data-aos="fade-up">
-            <a href="{{ route('author.submissions.index', absolute: false) }}" class="btn btn-outline-secondary px-4">Cancel</a>
+            <a href="{{ route('author.submissions.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
             <button type="submit" class="btn btn-primary px-5 fw-semibold">
                 <i class="bi bi-send me-2"></i>Submit Manuscript
             </button>

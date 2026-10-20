@@ -31,10 +31,35 @@ class VolumeController extends Controller
             'description' => ['nullable', 'string'],
         ]);
 
-        Volume::create($validated);
+        $nextVolumeNo = Volume::max('volume_no') + 1;
+        if ($nextVolumeNo < 1) {
+            $nextVolumeNo = 1;
+        }
+
+        $slug = \Illuminate\Support\Str::slug($validated['title']) . '-' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(4));
+
+        $volume = new Volume();
+        $volume->title = $validated['title'];
+        $volume->year = $validated['year'];
+        $volume->status = $validated['status'];
+        $volume->description = $validated['description'];
+        $volume->volume_no = $nextVolumeNo;
+        $volume->slug = $slug;
+        $volume->is_active = true;
+        $volume->save();
 
         return redirect()
             ->route('editor.volumes.index')
             ->with('success', 'Volume created successfully.');
+    }
+
+    public function toggleStatus(Volume $volume): RedirectResponse
+    {
+        $newStatus = $volume->status === 'published' ? 'draft' : 'published';
+        $volume->update(['status' => $newStatus]);
+
+        return redirect()
+            ->back()
+            ->with('success', "Volume status updated to '{$newStatus}' successfully.");
     }
 }

@@ -206,9 +206,9 @@ class SubmissionController extends Controller
         if (class_exists(SubmissionStatusHistory::class)) {
             SubmissionStatusHistory::create([
                 'submission_id' => $submissionId,
-                'from_status' => $fromStatus,
-                'to_status' => $toStatus,
-                'remarks' => $remarks,
+                'old_status' => $fromStatus,
+                'new_status' => $toStatus,
+                'note' => $remarks,
             ]);
         }
     }
@@ -243,10 +243,10 @@ class SubmissionController extends Controller
         }
     }
 
-    public function publishForm(Submission $submission)
+public function publishForm(Submission $submission)
     {
         abort_unless($submission->hasPaidPublicationFee(), 422, 'Publication fee must be paid before publication can proceed.');
-        abort_unless($submission->status === 'accepted' || $submission->status === 'published', 403, 'Only accepted submissions can be published.');
+        $this->assertPublishable($submission);
 
         $issues = Issue::with('volume')
             ->orderByDesc('published_on')
@@ -256,10 +256,27 @@ class SubmissionController extends Controller
         return view('auth.editor.submissions.publish', compact('submission', 'issues'));
     }
 
+    /**
+     * A submission is publishable once it is accepted, and also once it has
+     * been moved to `screening`, which is the state Admin\AdminController sets
+     * when an editor is assigned for publication. This mirrors
+     * EditorialController::publish().
+     */
+    private const PUBLISHABLE_STATUSES = ['accepted', 'screening', 'published'];
+
+    private function assertPublishable(Submission $submission): void
+    {
+        abort_unless(
+            in_array($submission->status, self::PUBLISHABLE_STATUSES, true),
+            422,
+            'Only accepted submissions can be published.'
+        );
+    }
+
     public function publish(Request $request, Submission $submission): RedirectResponse
     {
         abort_unless($submission->hasPaidPublicationFee(), 422, 'Publication fee must be paid before publication can proceed.');
-        abort_unless($submission->status === 'accepted' || $submission->status === 'published', 403, 'Only accepted submissions can be published.');
+        $this->assertPublishable($submission);
 
         $validated = $request->validate([
             'issue_id' => ['required', 'exists:issues,id'],

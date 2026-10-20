@@ -4,19 +4,19 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f081c6a00e0c0551fdf542128fcf9fcf",
+    "content-hash": "19545267fab3010b855b8a9d3c793b11",
     "packages": [
         {
-            "name": "barryvdh/OJMAS_Journal-dompdf",
+            "name": "barryvdh/laravel-dompdf",
             "version": "v3.1.2",
             "source": {
                 "type": "git",
-                "url": "https://github.com/barryvdh/OJMAS_Journal-dompdf.git",
+                "url": "https://github.com/barryvdh/laravel-dompdf.git",
                 "reference": "ee3b72b19ccdf57d0243116ecb2b90261344dedc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/barryvdh/OJMAS_Journal-dompdf/zipball/ee3b72b19ccdf57d0243116ecb2b90261344dedc",
+                "url": "https://api.github.com/repos/barryvdh/laravel-dompdf/zipball/ee3b72b19ccdf57d0243116ecb2b90261344dedc",
                 "reference": "ee3b72b19ccdf57d0243116ecb2b90261344dedc",
                 "shasum": ""
             },
@@ -33,7 +33,7 @@
             },
             "type": "library",
             "extra": {
-                "OJMAS_Journal": {
+                "laravel": {
                     "aliases": {
                         "PDF": "Barryvdh\\DomPDF\\Facade\\Pdf",
                         "Pdf": "Barryvdh\\DomPDF\\Facade\\Pdf"
@@ -61,15 +61,15 @@
                     "email": "barryvdh@gmail.com"
                 }
             ],
-            "description": "A DOMPDF Wrapper for OJMAS_Journal",
+            "description": "A DOMPDF Wrapper for Laravel",
             "keywords": [
                 "dompdf",
-                "OJMAS_Journal",
+                "laravel",
                 "pdf"
             ],
             "support": {
-                "issues": "https://github.com/barryvdh/OJMAS_Journal-dompdf/issues",
-                "source": "https://github.com/barryvdh/OJMAS_Journal-dompdf/tree/v3.1.2"
+                "issues": "https://github.com/barryvdh/laravel-dompdf/issues",
+                "source": "https://github.com/barryvdh/laravel-dompdf/tree/v3.1.2"
             },
             "funding": [
                 {
@@ -791,8 +791,8 @@
             "description": "Cross-origin resource sharing library for the Symfony HttpFoundation",
             "homepage": "https://github.com/fruitcake/php-cors",
             "keywords": [
-                "cors",
                 "OJMAS_Journal",
+                "cors",
                 "symfony"
             ],
             "support": {
@@ -1286,17 +1286,17 @@
             "time": "2025-08-22T14:27:06+00:00"
         },
         {
-            "name": "OJMAS_Journal/framework",
-            "version": "v12.54.1",
+            "name": "laravel/framework",
+            "version": "v12.56.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/OJMAS_Journal/framework.git",
-                "reference": "325497463e7599cd14224c422c6e5dd2fe832868"
+                "url": "https://github.com/laravel/framework.git",
+                "reference": "dac16d424b59debb2273910dde88eb7050a2a709"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/OJMAS_Journal/framework/zipball/325497463e7599cd14224c422c6e5dd2fe832868",
-                "reference": "325497463e7599cd14224c422c6e5dd2fe832868",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/dac16d424b59debb2273910dde88eb7050a2a709",
+                "reference": "dac16d424b59debb2273910dde88eb7050a2a709",
                 "shasum": ""
             },
             "require": {
@@ -1315,8 +1315,8 @@
                 "fruitcake/php-cors": "^1.3",
                 "guzzlehttp/guzzle": "^7.8.2",
                 "guzzlehttp/uri-template": "^1.0",
-                "OJMAS_Journal/prompts": "^0.3.0",
-                "OJMAS_Journal/serializable-closure": "^1.3|^2.0",
+                "laravel/prompts": "^0.3.0",
+                "laravel/serializable-closure": "^1.3|^2.0",
                 "league/commonmark": "^2.8.1",
                 "league/flysystem": "^3.25.1",
                 "league/flysystem-local": "^3.25.1",
@@ -1401,7 +1401,7 @@
                 "fakerphp/faker": "^1.24",
                 "guzzlehttp/promises": "^2.0.3",
                 "guzzlehttp/psr7": "^2.4",
-                "OJMAS_Journal/pint": "^1.18",
+                "laravel/pint": "^1.18",
                 "league/flysystem-aws-s3-v3": "^3.25.1",
                 "league/flysystem-ftp": "^3.25.1",
                 "league/flysystem-path-prefixing": "^3.25.1",
@@ -1412,7 +1412,7 @@
                 "orchestra/testbench-core": "^10.9.0",
                 "pda/pheanstalk": "^5.0.6|^7.0.0",
                 "php-http/discovery": "^1.15",
-                "phpstan/phpstan": "^2.0",
+                "phpstan/phpstan": "^2.1.41",
                 "phpunit/phpunit": "^10.5.35|^11.5.3|^12.0.1",
                 "predis/predis": "^2.3|^3.0",
                 "resend/resend-php": "^0.10.0|^1.0",
@@ -1436,7 +1436,7 @@
                 "ext-redis": "Required to use the Redis cache and queue drivers (^4.0|^5.0|^6.0).",
                 "fakerphp/faker": "Required to generate fake data using the fake() helper (^1.23).",
                 "filp/whoops": "Required for friendly error pages in development (^2.14.3).",
-                "OJMAS_Journal/tinker": "Required to use the tinker console command (^2.0).",
+                "laravel/tinker": "Required to use the tinker console command (^2.0).",
                 "league/flysystem-aws-s3-v3": "Required to use the Flysystem S3 driver (^3.25.1).",
                 "league/flysystem-ftp": "Required to use the Flysystem FTP driver (^3.25.1).",
                 "league/flysystem-path-prefixing": "Required to use the scoped driver (^3.25.1).",
@@ -1492,33 +1492,33 @@
             "authors": [
                 {
                     "name": "Taylor Otwell",
-                    "email": "taylor@OJMAS_Journal.com"
+                    "email": "taylor@laravel.com"
                 }
             ],
-            "description": "The OJMAS_Journal Framework.",
-            "homepage": "https://OJMAS_Journal.com",
+            "description": "The Laravel Framework.",
+            "homepage": "https://laravel.com",
             "keywords": [
                 "framework",
-                "OJMAS_Journal"
+                "laravel"
             ],
             "support": {
-                "issues": "https://github.com/OJMAS_Journal/framework/issues",
-                "source": "https://github.com/OJMAS_Journal/framework"
+                "issues": "https://github.com/laravel/framework/issues",
+                "source": "https://github.com/laravel/framework"
             },
-            "time": "2026-03-10T20:25:56+00:00"
+            "time": "2026-03-26T14:51:54+00:00"
         },
         {
-            "name": "OJMAS_Journal/prompts",
-            "version": "v0.3.14",
+            "name": "laravel/prompts",
+            "version": "v0.3.26",
             "source": {
                 "type": "git",
-                "url": "https://github.com/OJMAS_Journal/prompts.git",
-                "reference": "9f0e371244eedfe2ebeaa72c79c54bb5df6e0176"
+                "url": "https://github.com/laravel/prompts.git",
+                "reference": "2d1e9bf6bab8d3f383c254db7f2b4ea8816d55e0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/OJMAS_Journal/prompts/zipball/9f0e371244eedfe2ebeaa72c79c54bb5df6e0176",
-                "reference": "9f0e371244eedfe2ebeaa72c79c54bb5df6e0176",
+                "url": "https://api.github.com/repos/laravel/prompts/zipball/2d1e9bf6bab8d3f383c254db7f2b4ea8816d55e0",
+                "reference": "2d1e9bf6bab8d3f383c254db7f2b4ea8816d55e0",
                 "shasum": ""
             },
             "require": {
@@ -1529,7 +1529,7 @@
             },
             "conflict": {
                 "illuminate/console": ">=10.17.0 <10.25.0",
-                "OJMAS_Journal/framework": ">=10.17.0 <10.25.0"
+                "laravel/framework": ">=10.17.0 <10.25.0"
             },
             "require-dev": {
                 "illuminate/collections": "^10.0|^11.0|^12.0|^13.0",
@@ -1552,7 +1552,7 @@
                     "src/helpers.php"
                 ],
                 "psr-4": {
-                    "OJMAS_Journal\\Prompts\\": "src/"
+                    "Laravel\\Prompts\\": "src/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -1561,23 +1561,22 @@
             ],
             "description": "Add beautiful and user-friendly forms to your command-line applications.",
             "support": {
-                "issues": "https://github.com/OJMAS_Journal/prompts/issues",
-                "source": "https://github.com/OJMAS_Journal/prompts/tree/v0.3.14"
+                "source": "https://github.com/laravel/prompts/tree/v0.3.26"
             },
-            "time": "2026-03-01T09:02:38+00:00"
+            "time": "2026-10-09T14:45:13+00:00"
         },
         {
-            "name": "OJMAS_Journal/serializable-closure",
-            "version": "v2.0.10",
+            "name": "laravel/serializable-closure",
+            "version": "v2.1.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/OJMAS_Journal/serializable-closure.git",
-                "reference": "870fc81d2f879903dfc5b60bf8a0f94a1609e669"
+                "url": "https://github.com/laravel/serializable-closure.git",
+                "reference": "2d5869a838bbcf37e0d8b0568fc41914e81374b5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/OJMAS_Journal/serializable-closure/zipball/870fc81d2f879903dfc5b60bf8a0f94a1609e669",
-                "reference": "870fc81d2f879903dfc5b60bf8a0f94a1609e669",
+                "url": "https://api.github.com/repos/laravel/serializable-closure/zipball/2d5869a838bbcf37e0d8b0568fc41914e81374b5",
+                "reference": "2d5869a838bbcf37e0d8b0568fc41914e81374b5",
                 "shasum": ""
             },
             "require": {
@@ -1598,7 +1597,7 @@
             },
             "autoload": {
                 "psr-4": {
-                    "OJMAS_Journal\\SerializableClosure\\": "src/"
+                    "Laravel\\SerializableClosure\\": "src/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -1608,36 +1607,36 @@
             "authors": [
                 {
                     "name": "Taylor Otwell",
-                    "email": "taylor@OJMAS_Journal.com"
+                    "email": "taylor@laravel.com"
                 },
                 {
                     "name": "Nuno Maduro",
-                    "email": "nuno@OJMAS_Journal.com"
+                    "email": "nuno@laravel.com"
                 }
             ],
-            "description": "OJMAS_Journal Serializable Closure provides an easy and secure way to serialize closures in PHP.",
+            "description": "Laravel Serializable Closure provides an easy and secure way to serialize closures in PHP.",
             "keywords": [
                 "closure",
-                "OJMAS_Journal",
+                "laravel",
                 "serializable"
             ],
             "support": {
-                "issues": "https://github.com/OJMAS_Journal/serializable-closure/issues",
-                "source": "https://github.com/OJMAS_Journal/serializable-closure"
+                "issues": "https://github.com/laravel/serializable-closure/issues",
+                "source": "https://github.com/laravel/serializable-closure"
             },
-            "time": "2026-02-20T19:59:49+00:00"
+            "time": "2026-09-22T14:32:34+00:00"
         },
         {
-            "name": "OJMAS_Journal/tinker",
+            "name": "laravel/tinker",
             "version": "v2.11.1",
             "source": {
                 "type": "git",
-                "url": "https://github.com/OJMAS_Journal/tinker.git",
+                "url": "https://github.com/laravel/tinker.git",
                 "reference": "c9f80cc835649b5c1842898fb043f8cc098dd741"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/OJMAS_Journal/tinker/zipball/c9f80cc835649b5c1842898fb043f8cc098dd741",
+                "url": "https://api.github.com/repos/laravel/tinker/zipball/c9f80cc835649b5c1842898fb043f8cc098dd741",
                 "reference": "c9f80cc835649b5c1842898fb043f8cc098dd741",
                 "shasum": ""
             },
@@ -1659,15 +1658,15 @@
             },
             "type": "library",
             "extra": {
-                "OJMAS_Journal": {
+                "laravel": {
                     "providers": [
-                        "OJMAS_Journal\\Tinker\\TinkerServiceProvider"
+                        "Laravel\\Tinker\\TinkerServiceProvider"
                     ]
                 }
             },
             "autoload": {
                 "psr-4": {
-                    "OJMAS_Journal\\Tinker\\": "src/"
+                    "Laravel\\Tinker\\": "src/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -1677,19 +1676,19 @@
             "authors": [
                 {
                     "name": "Taylor Otwell",
-                    "email": "taylor@OJMAS_Journal.com"
+                    "email": "taylor@laravel.com"
                 }
             ],
-            "description": "Powerful REPL for the OJMAS_Journal framework.",
+            "description": "Powerful REPL for the Laravel framework.",
             "keywords": [
                 "REPL",
                 "Tinker",
-                "OJMAS_Journal",
+                "laravel",
                 "psysh"
             ],
             "support": {
-                "issues": "https://github.com/OJMAS_Journal/tinker/issues",
-                "source": "https://github.com/OJMAS_Journal/tinker/tree/v2.11.1"
+                "issues": "https://github.com/laravel/tinker/issues",
+                "source": "https://github.com/laravel/tinker/tree/v2.11.1"
             },
             "time": "2026-02-06T14:12:35+00:00"
         },
@@ -2764,8 +2763,8 @@
             },
             "require-dev": {
                 "illuminate/console": "^11.47.0",
-                "OJMAS_Journal/pint": "^1.27.1",
                 "mockery/mockery": "^1.6.12",
+                "ojmas_journal/pint": "^1.27.1",
                 "pestphp/pest": "^2.36.0 || ^3.8.4 || ^4.3.2",
                 "phpstan/phpstan": "^1.12.32",
                 "phpstan/phpstan-strict-rules": "^1.6.2",
@@ -2829,6 +2828,167 @@
                 }
             ],
             "time": "2026-02-16T23:10:27+00:00"
+        },
+        {
+            "name": "phpoffice/math",
+            "version": "0.2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/PHPOffice/Math.git",
+                "reference": "fc2eb6d1a61b058d5dac77197059db30ee3c8329"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/PHPOffice/Math/zipball/fc2eb6d1a61b058d5dac77197059db30ee3c8329",
+                "reference": "fc2eb6d1a61b058d5dac77197059db30ee3c8329",
+                "shasum": ""
+            },
+            "require": {
+                "ext-dom": "*",
+                "ext-xml": "*",
+                "php": "^7.1|^8.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^0.12.88 || ^1.0.0",
+                "phpunit/phpunit": "^7.0 || ^9.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "PhpOffice\\Math\\": "src/Math/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Progi1984",
+                    "homepage": "https://lefevre.dev"
+                }
+            ],
+            "description": "Math - Manipulate Math Formula",
+            "homepage": "https://phpoffice.github.io/Math/",
+            "keywords": [
+                "MathML",
+                "officemathml",
+                "php"
+            ],
+            "support": {
+                "issues": "https://github.com/PHPOffice/Math/issues",
+                "source": "https://github.com/PHPOffice/Math/tree/0.2.0"
+            },
+            "time": "2024-08-12T07:30:45+00:00"
+        },
+        {
+            "name": "phpoffice/phpword",
+            "version": "1.3.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/PHPOffice/PHPWord.git",
+                "reference": "8392134ce4b5dba65130ba956231a1602b848b7f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/PHPOffice/PHPWord/zipball/8392134ce4b5dba65130ba956231a1602b848b7f",
+                "reference": "8392134ce4b5dba65130ba956231a1602b848b7f",
+                "shasum": ""
+            },
+            "require": {
+                "ext-dom": "*",
+                "ext-json": "*",
+                "ext-xml": "*",
+                "php": "^7.1|^8.0",
+                "phpoffice/math": "^0.2"
+            },
+            "require-dev": {
+                "dompdf/dompdf": "^2.0",
+                "ext-gd": "*",
+                "ext-libxml": "*",
+                "ext-zip": "*",
+                "friendsofphp/php-cs-fixer": "^3.3",
+                "mpdf/mpdf": "^8.1",
+                "phpmd/phpmd": "^2.13",
+                "phpstan/phpstan-phpunit": "@stable",
+                "phpunit/phpunit": ">=7.0",
+                "symfony/process": "^4.4 || ^5.0",
+                "tecnickcom/tcpdf": "^6.5"
+            },
+            "suggest": {
+                "dompdf/dompdf": "Allows writing PDF",
+                "ext-gd2": "Allows adding images",
+                "ext-xmlwriter": "Allows writing OOXML and ODF",
+                "ext-xsl": "Allows applying XSL style sheet to headers, to main document part, and to footers of an OOXML template",
+                "ext-zip": "Allows writing OOXML and ODF"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "PhpOffice\\PhpWord\\": "src/PhpWord"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "LGPL-3.0"
+            ],
+            "authors": [
+                {
+                    "name": "Mark Baker"
+                },
+                {
+                    "name": "Gabriel Bull",
+                    "email": "me@gabrielbull.com",
+                    "homepage": "http://gabrielbull.com/"
+                },
+                {
+                    "name": "Franck Lefevre",
+                    "homepage": "https://rootslabs.net/blog/"
+                },
+                {
+                    "name": "Ivan Lanin",
+                    "homepage": "http://ivan.lanin.org"
+                },
+                {
+                    "name": "Roman Syroeshko",
+                    "homepage": "http://ru.linkedin.com/pub/roman-syroeshko/34/a53/994/"
+                },
+                {
+                    "name": "Antoine de Troostembergh"
+                }
+            ],
+            "description": "PHPWord - A pure PHP library for reading and writing word processing documents (OOXML, ODF, RTF, HTML, PDF)",
+            "homepage": "https://phpoffice.github.io/PHPWord/",
+            "keywords": [
+                "ISO IEC 29500",
+                "OOXML",
+                "Office Open XML",
+                "OpenDocument",
+                "OpenXML",
+                "PhpOffice",
+                "PhpWord",
+                "Rich Text Format",
+                "WordprocessingML",
+                "doc",
+                "docx",
+                "html",
+                "odf",
+                "odt",
+                "office",
+                "pdf",
+                "php",
+                "reader",
+                "rtf",
+                "template",
+                "template processor",
+                "word",
+                "writer"
+            ],
+            "support": {
+                "issues": "https://github.com/PHPOffice/PHPWord/issues",
+                "source": "https://github.com/PHPOffice/PHPWord/tree/1.3.0"
+            },
+            "time": "2024-08-30T18:03:42+00:00"
         },
         {
             "name": "phpoption/phpoption",
@@ -3675,16 +3835,16 @@
             "time": "2026-03-03T17:31:43+00:00"
         },
         {
-            "name": "spatie/OJMAS_Journal-permission",
+            "name": "spatie/laravel-permission",
             "version": "6.25.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/spatie/OJMAS_Journal-permission.git",
+                "url": "https://github.com/spatie/laravel-permission.git",
                 "reference": "d7d4cb0d58616722f1afc90e0484e4825155b9b3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/OJMAS_Journal-permission/zipball/d7d4cb0d58616722f1afc90e0484e4825155b9b3",
+                "url": "https://api.github.com/repos/spatie/laravel-permission/zipball/d7d4cb0d58616722f1afc90e0484e4825155b9b3",
                 "reference": "d7d4cb0d58616722f1afc90e0484e4825155b9b3",
                 "shasum": ""
             },
@@ -3696,15 +3856,15 @@
                 "php": "^8.0"
             },
             "require-dev": {
-                "OJMAS_Journal/passport": "^11.0|^12.0|^13.0",
-                "OJMAS_Journal/pint": "^1.0",
+                "laravel/passport": "^11.0|^12.0|^13.0",
+                "laravel/pint": "^1.0",
                 "orchestra/testbench": "^6.23|^7.0|^8.0|^9.0|^10.0|^11.0",
                 "pestphp/pest": "^2.0|^3.0|^4.0",
-                "pestphp/pest-plugin-OJMAS_Journal": "^2.0|^3.0|^4.0"
+                "pestphp/pest-plugin-laravel": "^2.0|^3.0|^4.0"
             },
             "type": "library",
             "extra": {
-                "OJMAS_Journal": {
+                "laravel": {
                     "providers": [
                         "Spatie\\Permission\\PermissionServiceProvider"
                     ]
@@ -3734,11 +3894,11 @@
                     "role": "Developer"
                 }
             ],
-            "description": "Permission handling for OJMAS_Journal 8.0 and up",
-            "homepage": "https://github.com/spatie/OJMAS_Journal-permission",
+            "description": "Permission handling for Laravel 8.0 and up",
+            "homepage": "https://github.com/spatie/laravel-permission",
             "keywords": [
                 "acl",
-                "OJMAS_Journal",
+                "laravel",
                 "permission",
                 "permissions",
                 "rbac",
@@ -3747,8 +3907,8 @@
                 "spatie"
             ],
             "support": {
-                "issues": "https://github.com/spatie/OJMAS_Journal-permission/issues",
-                "source": "https://github.com/spatie/OJMAS_Journal-permission/tree/6.25.0"
+                "issues": "https://github.com/spatie/laravel-permission/issues",
+                "source": "https://github.com/spatie/laravel-permission/tree/6.25.0"
             },
             "funding": [
                 {
@@ -6803,17 +6963,17 @@
             "time": "2025-04-30T06:54:44+00:00"
         },
         {
-            "name": "OJMAS_Journal/breeze",
-            "version": "v2.4.1",
+            "name": "laravel/breeze",
+            "version": "v2.4.2",
             "source": {
                 "type": "git",
-                "url": "https://github.com/OJMAS_Journal/breeze.git",
-                "reference": "28cefeaf6af20177ddf5cc7b93e87e4ad79d533f"
+                "url": "https://github.com/laravel/breeze.git",
+                "reference": "4f20e7b2cc8d25daa85d8647241a89c8e0930305"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/OJMAS_Journal/breeze/zipball/28cefeaf6af20177ddf5cc7b93e87e4ad79d533f",
-                "reference": "28cefeaf6af20177ddf5cc7b93e87e4ad79d533f",
+                "url": "https://api.github.com/repos/laravel/breeze/zipball/4f20e7b2cc8d25daa85d8647241a89c8e0930305",
+                "reference": "4f20e7b2cc8d25daa85d8647241a89c8e0930305",
                 "shasum": ""
             },
             "require": {
@@ -6825,21 +6985,21 @@
                 "symfony/console": "^7.0|^8.0"
             },
             "require-dev": {
-                "OJMAS_Journal/framework": "^11.0|^12.0|^13.0",
+                "laravel/framework": "^11.0|^12.0|^13.0",
                 "orchestra/testbench-core": "^9.0|^10.0|^11.0",
                 "phpstan/phpstan": "^2.0"
             },
             "type": "library",
             "extra": {
-                "OJMAS_Journal": {
+                "laravel": {
                     "providers": [
-                        "OJMAS_Journal\\Breeze\\BreezeServiceProvider"
+                        "Laravel\\Breeze\\BreezeServiceProvider"
                     ]
                 }
             },
             "autoload": {
                 "psr-4": {
-                    "OJMAS_Journal\\Breeze\\": "src/"
+                    "Laravel\\Breeze\\": "src/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -6849,32 +7009,32 @@
             "authors": [
                 {
                     "name": "Taylor Otwell",
-                    "email": "taylor@OJMAS_Journal.com"
+                    "email": "taylor@laravel.com"
                 }
             ],
-            "description": "Minimal OJMAS_Journal authentication scaffolding with Blade and Tailwind.",
+            "description": "Minimal Laravel authentication scaffolding with Blade and Tailwind.",
             "keywords": [
                 "auth",
-                "OJMAS_Journal"
+                "laravel"
             ],
             "support": {
-                "issues": "https://github.com/OJMAS_Journal/breeze/issues",
-                "source": "https://github.com/OJMAS_Journal/breeze"
+                "issues": "https://github.com/laravel/breeze/issues",
+                "source": "https://github.com/laravel/breeze"
             },
-            "time": "2026-03-10T19:59:01+00:00"
+            "time": "2026-05-14T16:54:25+00:00"
         },
         {
-            "name": "OJMAS_Journal/pail",
-            "version": "v1.2.6",
+            "name": "laravel/pail",
+            "version": "v1.2.7",
             "source": {
                 "type": "git",
-                "url": "https://github.com/OJMAS_Journal/pail.git",
-                "reference": "aa71a01c309e7f66bc2ec4fb1a59291b82eb4abf"
+                "url": "https://github.com/laravel/pail.git",
+                "reference": "2f7d27dada8effc48b8c424445a69cca7007daaa"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/OJMAS_Journal/pail/zipball/aa71a01c309e7f66bc2ec4fb1a59291b82eb4abf",
-                "reference": "aa71a01c309e7f66bc2ec4fb1a59291b82eb4abf",
+                "url": "https://api.github.com/repos/laravel/pail/zipball/2f7d27dada8effc48b8c424445a69cca7007daaa",
+                "reference": "2f7d27dada8effc48b8c424445a69cca7007daaa",
                 "shasum": ""
             },
             "require": {
@@ -6889,8 +7049,8 @@
                 "symfony/console": "^6.0|^7.0|^8.0"
             },
             "require-dev": {
-                "OJMAS_Journal/framework": "^10.24|^11.0|^12.0|^13.0",
-                "OJMAS_Journal/pint": "^1.13",
+                "laravel/framework": "^10.24|^11.0|^12.0|^13.0",
+                "laravel/pint": "^1.13",
                 "orchestra/testbench-core": "^8.13|^9.17|^10.8|^11.0",
                 "pestphp/pest": "^2.20|^3.0|^4.0",
                 "pestphp/pest-plugin-type-coverage": "^2.3|^3.0|^4.0",
@@ -6900,9 +7060,9 @@
             },
             "type": "library",
             "extra": {
-                "OJMAS_Journal": {
+                "laravel": {
                     "providers": [
-                        "OJMAS_Journal\\Pail\\PailServiceProvider"
+                        "Laravel\\Pail\\PailServiceProvider"
                     ]
                 },
                 "branch-alias": {
@@ -6911,7 +7071,7 @@
             },
             "autoload": {
                 "psr-4": {
-                    "OJMAS_Journal\\Pail\\": "src/"
+                    "Laravel\\Pail\\": "src/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -6921,40 +7081,40 @@
             "authors": [
                 {
                     "name": "Taylor Otwell",
-                    "email": "taylor@OJMAS_Journal.com"
+                    "email": "taylor@laravel.com"
                 },
                 {
                     "name": "Nuno Maduro",
                     "email": "enunomaduro@gmail.com"
                 }
             ],
-            "description": "Easily delve into your OJMAS_Journal application's log files directly from the command line.",
-            "homepage": "https://github.com/OJMAS_Journal/pail",
+            "description": "Easily delve into your Laravel application's log files directly from the command line.",
+            "homepage": "https://github.com/laravel/pail",
             "keywords": [
                 "dev",
-                "OJMAS_Journal",
+                "laravel",
                 "logs",
                 "php",
                 "tail"
             ],
             "support": {
-                "issues": "https://github.com/OJMAS_Journal/pail/issues",
-                "source": "https://github.com/OJMAS_Journal/pail"
+                "issues": "https://github.com/laravel/pail/issues",
+                "source": "https://github.com/laravel/pail"
             },
-            "time": "2026-02-09T13:44:54+00:00"
+            "time": "2026-05-20T22:24:57+00:00"
         },
         {
-            "name": "OJMAS_Journal/pint",
-            "version": "v1.29.0",
+            "name": "laravel/pint",
+            "version": "v1.30.4",
             "source": {
                 "type": "git",
-                "url": "https://github.com/OJMAS_Journal/pint.git",
-                "reference": "bdec963f53172c5e36330f3a400604c69bf02d39"
+                "url": "https://github.com/laravel/pint.git",
+                "reference": "a96cb6eee2961905d2fce7207aefb80945bf6b28"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/OJMAS_Journal/pint/zipball/bdec963f53172c5e36330f3a400604c69bf02d39",
-                "reference": "bdec963f53172c5e36330f3a400604c69bf02d39",
+                "url": "https://api.github.com/repos/laravel/pint/zipball/a96cb6eee2961905d2fce7207aefb80945bf6b28",
+                "reference": "a96cb6eee2961905d2fce7207aefb80945bf6b28",
                 "shasum": ""
             },
             "require": {
@@ -6965,14 +7125,16 @@
                 "php": "^8.2.0"
             },
             "require-dev": {
-                "friendsofphp/php-cs-fixer": "^3.94.2",
-                "illuminate/view": "^12.54.1",
-                "larastan/larastan": "^3.9.3",
-                "OJMAS_Journal-zero/framework": "^12.0.5",
+                "composer/semver": "^3.4.4",
+                "friendsofphp/php-cs-fixer": "^3.95.18",
+                "illuminate/view": "^12.65.0",
+                "larastan/larastan": "^3.10.0",
+                "laravel-zero/framework": "^12.1.0",
+                "laravel/agent-detector": "^2.0.2",
+                "laravel/prompts": "^0.3.22",
                 "mockery/mockery": "^1.6.12",
                 "nunomaduro/termwind": "^2.4.0",
-                "pestphp/pest": "^3.8.6",
-                "shipfastlabs/agent-detector": "^1.1.0"
+                "pestphp/pest": "^3.8.7"
             },
             "bin": [
                 "builds/pint"
@@ -6996,7 +7158,7 @@
                 }
             ],
             "description": "An opinionated code formatter for PHP.",
-            "homepage": "https://OJMAS_Journal.com",
+            "homepage": "https://laravel.com",
             "keywords": [
                 "dev",
                 "format",
@@ -7006,23 +7168,23 @@
                 "php"
             ],
             "support": {
-                "issues": "https://github.com/OJMAS_Journal/pint/issues",
-                "source": "https://github.com/OJMAS_Journal/pint"
+                "issues": "https://github.com/laravel/pint/issues",
+                "source": "https://github.com/laravel/pint"
             },
-            "time": "2026-03-12T15:51:39+00:00"
+            "time": "2026-08-05T16:47:22+00:00"
         },
         {
-            "name": "OJMAS_Journal/sail",
-            "version": "v1.53.0",
+            "name": "laravel/sail",
+            "version": "v1.69.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/OJMAS_Journal/sail.git",
-                "reference": "e340eaa2bea9b99192570c48ed837155dbf24fbb"
+                "url": "https://github.com/laravel/sail.git",
+                "reference": "3587ac9d68e8f2eaf36bd9fb003a4555861dca9d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/OJMAS_Journal/sail/zipball/e340eaa2bea9b99192570c48ed837155dbf24fbb",
-                "reference": "e340eaa2bea9b99192570c48ed837155dbf24fbb",
+                "url": "https://api.github.com/repos/laravel/sail/zipball/3587ac9d68e8f2eaf36bd9fb003a4555861dca9d",
+                "reference": "3587ac9d68e8f2eaf36bd9fb003a4555861dca9d",
                 "shasum": ""
             },
             "require": {
@@ -7042,15 +7204,15 @@
             ],
             "type": "library",
             "extra": {
-                "OJMAS_Journal": {
+                "laravel": {
                     "providers": [
-                        "OJMAS_Journal\\Sail\\SailServiceProvider"
+                        "Laravel\\Sail\\SailServiceProvider"
                     ]
                 }
             },
             "autoload": {
                 "psr-4": {
-                    "OJMAS_Journal\\Sail\\": "src/"
+                    "Laravel\\Sail\\": "src/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -7060,19 +7222,19 @@
             "authors": [
                 {
                     "name": "Taylor Otwell",
-                    "email": "taylor@OJMAS_Journal.com"
+                    "email": "taylor@laravel.com"
                 }
             ],
-            "description": "Docker files for running a basic OJMAS_Journal application.",
+            "description": "Docker files for running a basic Laravel application.",
             "keywords": [
                 "docker",
-                "OJMAS_Journal"
+                "laravel"
             ],
             "support": {
-                "issues": "https://github.com/OJMAS_Journal/sail/issues",
-                "source": "https://github.com/OJMAS_Journal/sail"
+                "issues": "https://github.com/laravel/sail/issues",
+                "source": "https://github.com/laravel/sail"
             },
-            "time": "2026-02-06T12:16:02+00:00"
+            "time": "2026-10-08T20:06:52+00:00"
         },
         {
             "name": "mockery/mockery",
@@ -7238,14 +7400,14 @@
                 "symfony/console": "^7.4.4 || ^8.0.4"
             },
             "conflict": {
-                "OJMAS_Journal/framework": "<11.48.0 || >=14.0.0",
+                "ojmas_journal/framework": "<11.48.0 || >=14.0.0",
                 "phpunit/phpunit": "<11.5.50 || >=14.0.0"
             },
             "require-dev": {
                 "brianium/paratest": "^7.8.5",
                 "larastan/larastan": "^3.9.2",
-                "OJMAS_Journal/framework": "^11.48.0 || ^12.52.0",
-                "OJMAS_Journal/pint": "^1.27.1",
+                "ojmas_journal/framework": "^11.48.0 || ^12.52.0",
+                "ojmas_journal/pint": "^1.27.1",
                 "orchestra/testbench-core": "^9.12.0 || ^10.9.0",
                 "pestphp/pest": "^3.8.5 || ^4.4.1 || ^5.0.0",
                 "sebastian/environment": "^7.2.1 || ^8.0.3 || ^9.0.0"
@@ -7281,6 +7443,8 @@
             ],
             "description": "Cli error handling for console/command-line PHP applications.",
             "keywords": [
+                "OJMAS_Journal",
+                "OJMAS_Journal-zero",
                 "artisan",
                 "cli",
                 "command-line",
@@ -7288,8 +7452,6 @@
                 "dev",
                 "error",
                 "handling",
-                "OJMAS_Journal",
-                "OJMAS_Journal-zero",
                 "php",
                 "symfony"
             ],

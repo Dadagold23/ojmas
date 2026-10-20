@@ -63,9 +63,19 @@
         </div>
     </div>
 
-    <div class="mb-4" data-aos="fade-up">
-        <h3 class="dash-title mb-1">Editor Dashboard</h3>
-        <p class="text-muted mb-0">Overview of submissions and editorial activities.</p>
+    <div class="d-flex justify-content-between align-items-center mb-4" data-aos="fade-up">
+        <div>
+            <h3 class="dash-title mb-1">Editor Dashboard</h3>
+            <p class="text-muted mb-0">Overview of submissions and editorial activities.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ route('editor.volumes.index') }}" class="btn btn-info btn-sm fw-semibold text-white">
+                <i class="bi bi-journal-bookmark me-1"></i>Volumes
+            </a>
+            <a href="{{ route('editor.issues.index') }}" class="btn btn-secondary btn-sm fw-semibold">
+                <i class="bi bi-journals me-1"></i>Issues
+            </a>
+        </div>
     </div>
 
     <div class="row g-4 mb-4">

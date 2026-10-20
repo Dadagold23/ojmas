@@ -15,6 +15,7 @@ return new class extends Migration {
             $table->unsignedInteger('issue_no');
             $table->date('published_on')->nullable();
             $table->text('description')->nullable();
+            $table->string('pdf_path')->nullable();
             $table->enum('status', ['draft', 'published'])->default('draft');
             $table->timestamps();
         });
@@ -22,6 +23,6 @@ return new class extends Migration {
 
     public function down(): void
     {
-        Schema::dopIfExists('isses');
+        Schema::dropIfExists('issues');
     }
 };

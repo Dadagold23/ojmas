@@ -55,7 +55,7 @@
                 <div class="col-lg-8">
                     <h1 class="fw-bold mb-3">Journal Archives</h1>
                     <p class="mb-0 text-white-50">
-                        Explore published scholarly articles, search by topic, and browse archived research contributions.
+                        Explore published scholarly articles by article title, topic, issue number, volume number, author, and more.
                     </p>
                 </div>
                 <div class="col-lg-4 text-lg-end mt-4 mt-lg-0">
@@ -70,12 +70,12 @@
             <form method="GET" action="{{ route('archives') }}">
                 <div class="row g-3 align-items-end">
                     <div class="col-lg-5">
-                        <label class="form-label fw-semibold">Search Articles</label>
+                        <label class="form-label fw-semibold">Search Box 2</label>
                         <input
                             type="text"
                             name="q"
                             class="form-control"
-                            placeholder="Search title, abstract, keywords..."
+                            placeholder="Search name, issue no, volume no, journal topic, author..."
                             value="{{ $search ?? '' }}"
                         >
                     </div>

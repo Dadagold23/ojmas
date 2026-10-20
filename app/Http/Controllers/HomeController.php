@@ -44,7 +44,9 @@ class HomeController extends Controller
             'licensing_phone' => '+234(0)9046008579',
             'licensing_website' => 'www.openjournalsnigeria.org.ng',
             'licensing_office' => 'Room No. 38, First Floor, Muhammadu Buhari Administrative Block, Edo University Iyamho, Edo State, Nigeria',
-            'issn' => '3121-7508',
+            'flyer' => 'images/journal/call-for-paper-2026-09.jpeg',
+                'p_issn' => '3121-7508',
+                'e_issn' => '3156-5182',
         ];
 
         $homeScope = [
@@ -62,13 +64,44 @@ class HomeController extends Controller
         $subject = trim((string) $request->get('subject'));
         $year    = trim((string) $request->get('year'));
 
-        $articles = Article::with(['submission', 'issue.volume'])
+        $articles = Article::with(['submission.articleAuthors', 'author', 'issue.volume'])
             ->where('status', 'published')
+            ->whereHas('issue', function ($q) {
+                $q->where('status', 'published');
+            })
             ->when($search, function ($query) use ($search) {
                 $query->where(function ($sub) use ($search) {
                     $sub->where('title', 'like', "%{$search}%")
                         ->orWhere('abstract', 'like', "%{$search}%")
-                        ->orWhere('keywords', 'like', "%{$search}%");
+                        ->orWhere('keywords', 'like', "%{$search}%")
+                        ->orWhereHas('author', function ($q) use ($search) {
+                            $q->where('name', 'like', "%{$search}%")
+                                ->orWhere('email', 'like', "%{$search}%")
+                                ->orWhere('institution', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('submission', function ($q) use ($search) {
+                            $q->where('title', 'like', "%{$search}%")
+                                ->orWhere('abstract', 'like', "%{$search}%")
+                                ->orWhere('keywords', 'like', "%{$search}%")
+                                ->orWhere('subject_area', 'like', "%{$search}%")
+                                ->orWhere('submission_no', 'like', "%{$search}%")
+                                ->orWhereHas('articleAuthors', function ($authorQuery) use ($search) {
+                                    $authorQuery->where('full_name', 'like', "%{$search}%")
+                                        ->orWhere('email', 'like', "%{$search}%")
+                                        ->orWhere('institution', 'like', "%{$search}%");
+                                });
+                        })
+                        ->orWhereHas('issue', function ($q) use ($search) {
+                            $q->where('title', 'like', "%{$search}%")
+                                ->orWhere('issue_no', 'like', "%{$search}%")
+                                ->orWhere('description', 'like', "%{$search}%")
+                                ->orWhereHas('volume', function ($volumeQuery) use ($search) {
+                                    $volumeQuery->where('title', 'like', "%{$search}%")
+                                        ->orWhere('volume_no', 'like', "%{$search}%")
+                                        ->orWhere('year', 'like', "%{$search}%")
+                                        ->orWhere('description', 'like', "%{$search}%");
+                                });
+                        });
                 });
             })
             ->when($subject, function ($query) use ($subject) {
@@ -81,7 +114,10 @@ class HomeController extends Controller
             ->paginate(12)
             ->withQueryString();
 
-        $subjects = \App\Models\Submission::whereHas('article', fn($q) => $q->where('status', 'published'))
+        $subjects = \App\Models\Submission::whereHas('article', function ($q) {
+                $q->where('status', 'published')
+                  ->whereHas('issue', fn($iq) => $iq->where('status', 'published'));
+            })
             ->whereNotNull('subject_area')
             ->where('subject_area', '!=', '')
             ->distinct()
@@ -89,6 +125,9 @@ class HomeController extends Controller
             ->pluck('subject_area');
 
         $years = Article::where('status', 'published')
+            ->whereHas('issue', function ($q) {
+                $q->where('status', 'published');
+            })
             ->whereNotNull('published_on')
             ->selectRaw('YEAR(published_on) as year')
             ->distinct()
@@ -104,12 +143,44 @@ class HomeController extends Controller
         $volume = trim((string) $request->get('volume'));
         $year = trim((string) $request->get('year'));
 
-        $issues = Issue::with(['volume', 'articles'])
+        $issues = Issue::with(['volume', 'articles.author', 'articles.submission.articleAuthors'])
+            ->where('status', 'published')
             ->when($search, function ($query) use ($search) {
                 $query->where(function ($sub) use ($search) {
                     $sub->where('title', 'like', "%{$search}%")
                         ->orWhere('issue_no', 'like', "%{$search}%")
-                        ->orWhere('description', 'like', "%{$search}%");
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhereHas('volume', function ($q) use ($search) {
+                            $q->where('title', 'like', "%{$search}%")
+                                ->orWhere('volume_no', 'like', "%{$search}%")
+                                ->orWhere('year', 'like', "%{$search}%")
+                                ->orWhere('description', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('articles', function ($q) use ($search) {
+                            $q->where('status', 'published')
+                                ->where(function ($articleQuery) use ($search) {
+                                    $articleQuery->where('title', 'like', "%{$search}%")
+                                        ->orWhere('abstract', 'like', "%{$search}%")
+                                        ->orWhere('keywords', 'like', "%{$search}%")
+                                        ->orWhereHas('author', function ($authorQuery) use ($search) {
+                                            $authorQuery->where('name', 'like', "%{$search}%")
+                                                ->orWhere('email', 'like', "%{$search}%")
+                                                ->orWhere('institution', 'like', "%{$search}%");
+                                        })
+                                        ->orWhereHas('submission', function ($submissionQuery) use ($search) {
+                                            $submissionQuery->where('title', 'like', "%{$search}%")
+                                                ->orWhere('abstract', 'like', "%{$search}%")
+                                                ->orWhere('keywords', 'like', "%{$search}%")
+                                                ->orWhere('subject_area', 'like', "%{$search}%")
+                                                ->orWhere('submission_no', 'like', "%{$search}%")
+                                                ->orWhereHas('articleAuthors', function ($coAuthorQuery) use ($search) {
+                                                    $coAuthorQuery->where('full_name', 'like', "%{$search}%")
+                                                        ->orWhere('email', 'like', "%{$search}%")
+                                                        ->orWhere('institution', 'like', "%{$search}%");
+                                                });
+                                        });
+                                });
+                        });
                 });
             })
             ->when($volume, function ($query) use ($volume) {
@@ -125,6 +196,7 @@ class HomeController extends Controller
             ->withQueryString();
 
         $volumes = Issue::with('volume')
+            ->where('status', 'published')
             ->get()
             ->pluck('volume.title')
             ->filter()
@@ -132,7 +204,8 @@ class HomeController extends Controller
             ->sort()
             ->values();
 
-        $years = Issue::whereNotNull('published_on')
+        $years = Issue::where('status', 'published')
+            ->whereNotNull('published_on')
             ->selectRaw('YEAR(published_on) as year')
             ->distinct()
             ->orderByDesc('year')
@@ -147,6 +220,7 @@ class HomeController extends Controller
                 'author',
                 'issue.volume',
                 'submission.articleAuthors',
+                'publication',
             ])
             ->where('slug', $slug)
             ->where('status', 'published')
@@ -157,32 +231,116 @@ class HomeController extends Controller
 
     public function articlePdf(string $slug)
     {
-        $article = Article::with(['issue.volume', 'submission.articleAuthors'])
-            ->where('slug', $slug)
-            ->where('status', 'published')
-            ->firstOrFail();
-
-        $pdf = Pdf::loadView('articles.pdf', compact('article'))->setPaper('a4', 'portrait');
-        return $pdf->download(($article->slug ?? 'article') . '.pdf');
+        return $this->serveArticlePdf($slug);
     }
 
     public function downloadArticlePdf(string $slug)
     {
-        $article = Article::with('publication')
+        return $this->serveArticlePdf($slug);
+    }
+
+    /**
+     * Serves the article's real PDF when one has been published or uploaded,
+     * so downloads match what the reader previews. Falls back to generating a
+     * document from the stored metadata only when no real file exists.
+     */
+    protected function serveArticlePdf(string $slug)
+    {
+        $article = Article::with(['issue.volume', 'submission.articleAuthors', 'publication', 'submission.files'])
             ->where('slug', $slug)
             ->where('status', 'published')
             ->firstOrFail();
 
-        $path = $article->publication?->published_pdf_path;
+        $stored = $this->resolveStoredArticlePdf($article);
 
-        if ($path && Storage::disk('public')->exists($path)) {
-            return Storage::disk('public')->download($path, $article->slug . '.pdf');
+        if ($stored !== null) {
+            return Storage::disk($stored['disk'])->response(
+                $stored['path'],
+                $stored['name'],
+                [
+                    'Content-Type' => 'application/pdf',
+                    'Content-Disposition' => 'attachment',
+                ]
+            );
         }
 
-        // Fall back to generated PDF
-        $article->load(['issue.volume', 'submission.articleAuthors']);
-        $pdf = Pdf::loadView('articles.pdf', compact('article'))->setPaper('a4', 'portrait');
-        return $pdf->download($article->slug . '.pdf');
+        $pdf = Pdf::loadView('articles.pdf', compact('article'))
+            ->setPaper('a4', 'portrait')
+            ->setOption('margin-top', 28)
+            ->setOption('margin-bottom', 28)
+            ->setOption('margin-left', 28)
+            ->setOption('margin-right', 28);
+
+        $pdf->render();
+        $output = $pdf->getDomPDF()->output();
+
+        $fallback = preg_replace('/[^\w\.]+/', '', $article->slug ?? 'article');
+        return response($output, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $fallback . '.pdf"',
+            'Content-Length' => strlen($output),
+        ]);
+    }
+
+    /**
+     * Locates the article's real PDF: the published PDF first, then the
+     * author's manuscript upload. Returns null when neither exists.
+     *
+     * @return array{disk: string, path: string, name: string}|null
+     */
+    protected function resolveStoredArticlePdf(Article $article): ?array
+    {
+        $isPdf = fn (?string $name): bool =>
+            strtolower(pathinfo((string) $name, PATHINFO_EXTENSION)) === 'pdf';
+
+        $publishedPath = $article->publication?->published_pdf_path;
+
+        if ($publishedPath && $isPdf($publishedPath) && Storage::disk('public')->exists($publishedPath)) {
+            return [
+                'disk' => 'public',
+                'path' => $publishedPath,
+                'name' => ($article->title ?? 'article') . '.pdf',
+            ];
+        }
+
+        $manuscript = $article->submission?->files?->first(
+            fn ($file) => $isPdf($file->original_name) && $file->resolvedPrivatePath() !== null
+        );
+
+        if ($manuscript) {
+            return [
+                'disk' => 'private',
+                'path' => $manuscript->resolvedPrivatePath(),
+                'name' => $manuscript->original_name,
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * Streams the article's real PDF inline so it can be previewed on the
+     * article page.
+     */
+    public function articlePreview(string $slug)
+    {
+        $article = Article::with(['publication', 'submission.files'])
+            ->where('slug', $slug)
+            ->where('status', 'published')
+            ->firstOrFail();
+
+        $stored = $this->resolveStoredArticlePdf($article);
+
+        abort_if($stored === null, 404);
+
+        return Storage::disk($stored['disk'])->response(
+            $stored['path'],
+            $stored['name'],
+            [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline',
+            ]
+        );
     }
 
     public function issue(int $id)
@@ -191,6 +349,7 @@ class HomeController extends Controller
                 'volume',
                 'articles.author',
             ])
+            ->where('status', 'published')
             ->findOrFail($id);
 
         return view('issue', compact('issue'));
@@ -201,12 +360,50 @@ class HomeController extends Controller
         $issue = Issue::with([
                 'volume',
                 'articles.author',
+                'articles.publication',
             ])
             ->findOrFail($id);
 
-        $pdf = Pdf::loadView('issues.pdf', compact('issue'))->setPaper('a4', 'portrait');
+        // 1. An uploaded compiled journal always wins.
+        $compiled = $issue->pdf_path;
 
-        return $pdf->download('issue-' . $issue->id . '.pdf');
+        if ($compiled && Storage::disk('public')->exists($compiled)) {
+            return Storage::disk('public')->download($compiled, ($issue->title ?? 'issue') . '.pdf');
+        }
+
+        // 2. Otherwise serve the issue's original uploaded article content when
+        //    there is exactly one, so the download is the real document.
+        $uploaded = $issue->articles
+            ->map(fn (Article $article) => $article->publication?->published_pdf_path)
+            ->filter(fn ($path) => $path && Storage::disk('public')->exists($path))
+            ->unique()
+            ->values();
+
+        if ($uploaded->count() === 1) {
+            $only = $uploaded->first();
+
+            return Storage::disk('public')->download(
+                $only,
+                (($issue->volume?->title ?? 'issue') . ' ' . ($issue->title ?? '')) . '.pdf'
+            );
+        }
+
+        // 3. Fall back to a generated summary.
+        $pdf = Pdf::loadView('issues.pdf', compact('issue'))
+            ->setPaper('a4', 'portrait')
+            ->setOption('margin-top', 28)
+            ->setOption('margin-bottom', 28)
+            ->setOption('margin-left', 28)
+            ->setOption('margin-right', 28);
+
+        $pdf->render();
+        $output = $pdf->getDomPDF()->output();
+        $fallback = preg_replace('/[^\w\.]+/', '', \Illuminate\Support\Str::slug($issue->title));
+        return response($output, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $fallback . '.pdf"',
+            'Content-Length' => strlen($output),
+        ]);
     }
 
     public function guidelines()
@@ -288,7 +485,9 @@ class HomeController extends Controller
     {
         return view('journal.call-for-papers', [
             'call' => [
-                'issn' => '3121-7508',
+            'flyer' => 'images/journal/call-for-paper-2026-09.jpeg',
+                'p_issn' => '3121-7508',
+                'e_issn' => '3156-5182',
                 'tagline' => 'Quarterly Journal',
                 'intro' => 'OJMAS is a double-blind peer-reviewed quarterly journal committed to promoting knowledge across multiple academic disciplines and scholarly fields, proudly published by Philosophia Consulting.',
                 'value' => 'The journal brings together professors and a wide range of PhD holders to encourage interdisciplinary collaboration, innovation, complex problem-solving, and global research efficiency.',
@@ -308,17 +507,17 @@ class HomeController extends Controller
                     'Author names should begin with surname and be presented in bold.',
                     'Abstract should not exceed 250 words including keywords.',
                     'Use Times New Roman, 12pt font size, with double spacing.',
-                    'The full manuscript should not exceed 6,000 words except in rare cases.',
+                    'The full manuscript should not exceed 14 pages; extra pages attract extra charges.',
                     'Use APA 7th edition referencing style.',
                 ],
                 'reviewPublication' => [
                     'All submissions undergo double-blind peer review.',
                     'Approved articles attract a N25,000 publication fee.',
-                    'Articles are expected to be published by June 30, 2026.',
+                    'Articles are expected to be published by September 30, 2026.',
                 ],
                 'submissionGuidelines' => [
                     'Manuscripts must be original and not under consideration elsewhere.',
-                    'Submission deadline is May 15, 2026.',
+                    'Submission deadline is August 31, 2026.',
                     'Submit manuscripts through the journal website: https://www.ojmaspublish.online',
                     'A N10,000 vetting fee should accompany article submission.',
                 ],
@@ -337,11 +536,29 @@ class HomeController extends Controller
                     'phone' => '+234 913 494 3054',
                     'office' => 'Offa, Kwara State, Nigeria',
                 ],
+                'payment' => [
+                    'vettingFee' => 'N10,000',
+                    'accountNo' => '1221607465',
+                    'bank' => 'Zenith Bank',
+                    'accountName' => 'Philosophia Consulting',
+                ],
                 'contacts' => [
+                    [
+                        'name' => 'Dr. Olaoye Abdulmutolib Olajide',
+                        'role' => '',
+                        'email' => 'abdulmutolib.olaoye@fedpoffaonline.edu.ng',
+                        'phone' => '+234 813 675 6844',
+                    ],
+                    [
+                        'name' => 'Dr. Ikachukwu Otue Egbuta',
+                        'role' => '',
+                        'email' => 'egbutakachukwu@yahoo.com',
+                        'phone' => '+234 808 837 8613',
+                    ],
                     [
                         'name' => 'Mr. Omale Suraj Alladey',
                         'role' => 'Managing Editor',
-                        'email' => 'suraj.omale@fedpoffaonline.edu.ng',
+                        'email' => 'osajplace@gmail.com',
                         'phone' => '+234 913 494 3054',
                     ],
                 ],

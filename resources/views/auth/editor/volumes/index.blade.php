@@ -46,8 +46,16 @@
                             <tr>
                                 <td class="px-4 fw-semibold">{{ $volume->title }}</td>
                                 <td>{{ $volume->year ?? '-' }}</td>
-                                <td class="pe-4">
-                                    <span class="badge bg-info">{{ ucfirst($volume->status ?? 'draft') }}</span>
+                                <td class="pe-4 d-flex align-items-center gap-3">
+                                    <span class="badge bg-{{ $volume->status === 'published' ? 'success' : 'secondary' }}">
+                                        {{ ucfirst($volume->status ?? 'draft') }}
+                                    </span>
+                                    <form method="POST" action="{{ route('editor.volumes.toggle-status', $volume->id) }}">
+                                        @csrf
+                                        <button type="submit" class="btn btn-xs btn-outline-primary py-0 px-2" style="font-size: 0.75rem;">
+                                            {{ $volume->status === 'published' ? 'Set Draft' : 'Publish' }}
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                         @empty

@@ -2,12 +2,11 @@
     RewriteEngine On
 
     # Canonical production host.
-    RewriteCond %{HTTP_HOST} !(localhost|127\.0\.0\.1)(:\d+)?$ [NC]
     RewriteCond %{HTTP_HOST} ^www\.ojmaspublish\.online$ [NC]
     RewriteRule ^ https://ojmaspublish.online%{REQUEST_URI} [L,R=301,NE]
 
-    # Force HTTPS unless the proxy already terminated SSL upstream.
-    RewriteCond %{HTTP_HOST} !(localhost|127\.0\.0\.1)(:\d+)?$ [NC]
+    # Force HTTPS on the production domain unless the proxy already terminated SSL upstream.
+    RewriteCond %{HTTP_HOST} ^(?:www\.)?ojmaspublish\.online$ [NC]
     RewriteCond %{HTTPS} !=on
     RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
     RewriteRule ^ https://ojmaspublish.online%{REQUEST_URI} [L,R=301,NE]
@@ -16,8 +15,8 @@
     RewriteRule ^(\.env|artisan|composer\.(json|lock)|package(-lock)?\.json|vite\.config\..*)$ - [F,L,NC]
     RewriteRule ^(app|bootstrap|config|database|resources|routes|storage|tests|vendor)(/|$) - [F,L,NC]
 
-    # Remove /public from externally visible URLs.
-    RewriteCond %{HTTP_HOST} !(localhost|127\.0\.0\.1)(:\d+)?$ [NC]
+    # Remove /public only from production URLs; keep local development paths unchanged.
+    RewriteCond %{HTTP_HOST} ^(?:www\.)?ojmaspublish\.online$ [NC]
     RewriteRule ^public/(.*)$ https://ojmaspublish.online/$1 [L,R=301,NE]
 
     # If the requested asset exists in public/, serve it directly.

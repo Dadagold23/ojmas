@@ -11,12 +11,15 @@ class Article extends Model
 
     protected $fillable = [
         'submission_id',
+        'author_id',
         'issue_id',
         'title',
         'slug',
         'doi',
         'abstract',
         'keywords',
+        'subject_area',
+        'full_text',
         'pages',
         'published_on',
         'status',

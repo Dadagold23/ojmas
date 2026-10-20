@@ -209,6 +209,7 @@
     </style>
 </head>
 <body>
+    @unless(\View::hasSection('hide_chrome'))
     <nav class="navbar navbar-expand-lg navbar-dark oj-navbar py-3">
         <div class="container">
             <a class="navbar-brand oj-brand" href="{{ route('home') }}">
@@ -231,6 +232,10 @@
                     </li>
                     @endif
 
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ route('issues.index') }}">Issues</a>
+                    </li>
+
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             Journal
@@ -248,6 +253,24 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ route('dashboard') }}">Dashboard</a>
                     </li>
+                    @if(auth()->user()->hasAnyRole(['Super Admin', 'Admin', 'Managing Editor', 'Editor']))
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            Manage
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ route('editor.volumes.index') }}"><i class="bi bi-journal-bookmark me-2"></i>Volumes</a></li>
+                            <li><a class="dropdown-item" href="{{ route('editor.issues.index') }}"><i class="bi bi-journals me-2"></i>Issues</a></li>
+                            @if(auth()->user()->hasAnyRole(['Super Admin', 'Admin', 'Managing Editor', 'Editor']))
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.publications.index') }}"><i class="bi bi-journal-check me-2"></i>Publications</a></li>
+                            @endif
+                            @if(auth()->user()->hasAnyRole(['Super Admin', 'Admin', 'Managing Editor']))
+                            <li><a class="dropdown-item" href="{{ route('admin.users.index') }}"><i class="bi bi-people me-2"></i>Users</a></li>
+                            @endif
+                        </ul>
+                    </li>
+                    @endif
                     @endauth
                 </ul>
 
@@ -284,6 +307,7 @@
             </div>
         </div>
     </nav>
+    @endunless
 
     <main class="oj-main py-4">
         @yield('content')
@@ -311,7 +335,9 @@
         </div>
     </main>
 
+    @unless(\View::hasSection('hide_chrome'))
     @include('layouts.footer')
+    @endunless
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
