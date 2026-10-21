@@ -27,39 +27,42 @@ class PublicationController extends Controller
     public function create()
     {
         $issues   = Issue::with('volume')->latest()->get();
-        $authors  = \App\Models\User::orderBy('name')->get();
 
-        return view('admin.publications.create', compact('issues', 'authors'));
+        // The picker lists manuscripts already in the editorial pipeline that
+        // have not been published yet. Publication happens through the
+        // PublicationService readiness gate — a form can no longer invent a
+        // standalone PUB-* record that bypasses the journal's approvals.
+        $candidates = Submission::with('author')
+            ->where('status', '!=', 'published')
+            ->orderByDesc('updated_at')
+            ->limit(100)
+            ->get();
+
+        return view('admin.publications.create', compact('issues', 'candidates'));
     }
 
     public function store(Request $request, PublicationService $service)
     {
         $validated = $request->validate([
-            'title'         => ['required', 'string', 'max:500'],
-            'author_id'     => ['required', 'exists:users,id'],
-            'abstract'      => ['required', 'string'],
-            'keywords'      => ['nullable', 'string', 'max:500'],
-            'subject_area'  => ['nullable', 'string', 'max:255'],
+            'submission_id' => ['required', 'exists:submissions,id'],
             'issue_id'      => ['required', 'exists:issues,id'],
-            'published_pdf' => ['required', 'file', 'mimes:pdf', 'max:20480'],
+            'published_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:20480'],
             'note'          => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $submission = Submission::create([
-            'submission_no'           => 'PUB-' . strtoupper(\Illuminate\Support\Str::random(8)),
-            'author_id'               => $validated['author_id'],
-            'title'                   => $validated['title'],
-            'slug'                    => \Illuminate\Support\Str::slug($validated['title']) . '-' . strtolower(\Illuminate\Support\Str::random(5)),
-            'abstract'                => $validated['abstract'],
-            'keywords'                => $validated['keywords'] ?? null,
-            'subject_area'            => $validated['subject_area'] ?? null,
-            'status'                  => 'published',
-            'is_corresponding_author' => true,
-        ]);
+        $submission = Submission::with('author')->findOrFail($validated['submission_id']);
 
-        $pdfPath = $request->file('published_pdf')
-            ->store('published/articles', 'public');
+        // One publication per manuscript: republishing must not silently
+        // overwrite the existing article and publication record.
+        abort_if(Article::where('submission_id', $submission->id)->exists(), 422, 'This manuscript has already been published.');
 
+        $pdfPath = $request->hasFile('published_pdf')
+            ? $request->file('published_pdf')->store('published/articles', 'public')
+            : null;
+
+        // Publishes through the Module 4 readiness gate; a manuscript that is
+        // missing approvals throws a ValidationException whose messages are
+        // the constructive list of what is still outstanding.
         $article = $service->publish(
             $submission,
             (int) $validated['issue_id'],
@@ -67,16 +70,13 @@ class PublicationController extends Controller
             $validated['note'] ?? null
         );
 
-        // Notify the author if requested
         if ($request->boolean('notify_author')) {
-            $author = \App\Models\User::find($validated['author_id']);
-            if ($author) {
-                $author->notify(new ArticlePublishedNotification($article));
-            }
+            $submission->author?->notify(new ArticlePublishedNotification($article));
         }
 
         return redirect()->route('admin.publications.index')
-            ->with('success', 'Article published successfully' . ($request->boolean('notify_author') ? ' and author notified.' : '.'));
+            ->with('success', "'{$submission->submission_no}' published"
+                .($request->boolean('notify_author') ? ' and the author notified.' : '.'));
     }
 
     public function show(ArticlePublication $publication)

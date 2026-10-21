@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use App\Models\Article;
 use App\Models\Issue;
+use App\Services\Publishing\PublicationService;
 
 
 class SubmissionController extends Controller
@@ -287,27 +288,24 @@ public function publishForm(Submission $submission)
         $issue = Issue::findOrFail($validated['issue_id']);
         $publishedAt = $validated['published_on'] ?? now()->toDateString();
 
-        $article = Article::updateOrCreate(
-            ['submission_id' => $submission->id],
-            [
-                'issue_id' => $issue->id,
-                'author_id' => $submission->author_id,
-                'title' => $submission->title,
-                'slug' => $submission->slug,
-                'abstract' => $submission->abstract,
-                'keywords' => $submission->keywords,
-                'subject_area' => $submission->subject_area,
-                'full_text' => $validated['full_text'] ?? null,
-                'published_on' => $publishedAt,
-                'status' => 'published',
-            ]
-        );
-
         $oldStatus = $submission->status;
 
-        $submission->update([
-            'status' => 'published',
-        ]);
+        // The Module 4 readiness gate is the single source of truth: publishing
+        // happens through the service (which refuses, constructively, until
+        // vetting, acceptance, review, revision closure, copyediting and proof
+        // approval are all on record) instead of an Article::updateOrCreate
+        // call that previously bypassed every approval.
+        $article = app(PublicationService::class)->publish(
+            $submission,
+            $issue->id,
+            null,
+            "Published via the editor pipeline in {$issue->title}."
+        );
+
+        $article->update(array_filter([
+            'published_on' => $publishedAt,
+            'full_text' => $validated['full_text'] ?? null,
+        ], fn ($value) => $value !== null));
 
         $this->logStatusHistory(
             $submission->id,

@@ -20,8 +20,15 @@
         </a>
         <div>
             <h3 class="fw-bold mb-0">Publish Article</h3>
-            <p class="text-muted small mb-0">Upload the final PDF and assign to a journal issue.</p>
+            <p class="text-muted small mb-0">Publish a manuscript that is already in the editorial pipeline. The journal's publication-readiness checks are enforced.</p>
         </div>
+    </div>
+
+    <div class="alert alert-light border rounded-4 small mb-4">
+        <i class="bi bi-shield-check me-1 text-success"></i>
+        Publication only succeeds when the manuscript has: the vetting fee paid, a recorded acceptance,
+        at least one submitted reviewer report, closed revision rounds, copyediting passed and author proof approval.
+        If something is still outstanding, the refusal message below the form will list exactly what is missing.
     </div>
 
     @if($errors->any())
@@ -35,58 +42,23 @@
             <form method="POST" action="{{ route('admin.publications.store') }}" enctype="multipart/form-data">
                 @csrf
 
-                {{-- Article Title --}}
+                {{-- Manuscript (pipelined submissions only) --}}
                 <div class="mb-4">
-                    <label class="form-label fw-semibold small">Article Title <span class="text-danger">*</span></label>
-                    <input type="text" name="title"
-                           class="form-control @error('title') is-invalid @enderror"
-                           value="{{ old('title') }}"
-                           placeholder="Enter article title..." required>
-                    @error('title')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                </div>
-
-                {{-- Author --}}
-                <div class="mb-4">
-                    <label class="form-label fw-semibold small">Author <span class="text-danger">*</span></label>
-                    <select name="author_id" class="form-select @error('author_id') is-invalid @enderror" required>
-                        <option value="">— Select author user —</option>
-                        @foreach($authors as $author)
-                        <option value="{{ $author->id }}" {{ old('author_id') == $author->id ? 'selected' : '' }}>
-                            {{ $author->name }} &lt;{{ $author->email }}&gt;
-                        </option>
+                    <label class="form-label fw-semibold small">Manuscript in the pipeline <span class="text-danger">*</span></label>
+                    <select name="submission_id" class="form-select @error('submission_id') is-invalid @enderror" required>
+                        <option value="">— Select submission —</option>
+                        @foreach($candidates as $candidate)
+                            <option value="{{ $candidate->id }}" {{ old('submission_id') == $candidate->id ? 'selected' : '' }}>
+                                {{ $candidate->submission_no }} — {{ \Illuminate\Support\Str::limit($candidate->title ?? '(untitled)', 70) }}
+                                ({{ $candidate->author?->name ?? 'unknown author' }} · {{ $candidate->status }})
+                            </option>
                         @endforeach
                     </select>
-                    @error('author_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                </div>
-
-                {{-- Abstract --}}
-                <div class="mb-4">
-                    <label class="form-label fw-semibold small">Abstract <span class="text-danger">*</span></label>
-                    <textarea name="abstract" rows="5"
-                              class="form-control @error('abstract') is-invalid @enderror"
-                              placeholder="Enter article abstract...">{{ old('abstract') }}</textarea>
-                    @error('abstract')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                </div>
-
-                {{-- Keywords --}}
-                <div class="mb-4">
-                    <label class="form-label fw-semibold small">Keywords</label>
-                    <input type="text" name="keywords"
-                           class="form-control @error('keywords') is-invalid @enderror"
-                           value="{{ old('keywords') }}"
-                           placeholder="e.g. machine learning, education, artificial intelligence">
-                    <div class="form-text">Separate keywords with commas.</div>
-                    @error('keywords')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                </div>
-
-                {{-- Subject Area --}}
-                <div class="mb-4">
-                    <label class="form-label fw-semibold small">Subject Area</label>
-                    <input type="text" name="subject_area"
-                           class="form-control @error('subject_area') is-invalid @enderror"
-                           value="{{ old('subject_area') }}"
-                           placeholder="e.g. Science, Humanities, Agriculture">
-                    @error('subject_area')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    <div class="form-text">
+                        Only unpublished manuscripts still moving through the editorial workflow are listed.
+                        The article's title, author and metadata come from the submission itself — never re-typed.
+                    </div>
+                    @error('submission_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
 
                 {{-- Journal Issue --}}
@@ -103,13 +75,13 @@
                     @error('issue_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
 
-                {{-- Published PDF --}}
+                {{-- Published PDF (optional — a formatted PDF already exists on the manuscript) --}}
                 <div class="mb-4">
-                    <label class="form-label fw-semibold small">Published PDF <span class="text-danger">*</span></label>
+                    <label class="form-label fw-semibold small">Published PDF (optional)</label>
                     <input type="file" name="published_pdf"
                            class="form-control @error('published_pdf') is-invalid @enderror"
-                           accept=".pdf" required>
-                    <div class="form-text">PDF only — max 20 MB</div>
+                           accept=".pdf">
+                    <div class="form-text">PDF only — max 20 MB. Leave empty to publish without attaching the typeset PDF.</div>
                     @error('published_pdf')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
 

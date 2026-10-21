@@ -26,7 +26,7 @@ class ArticlePublishedNotification extends Notification implements ShouldQueue
             ->greeting('Dear ' . ($notifiable->name ?? 'Author') . ',')
             ->line('Your article has been published successfully.')
             ->line('Title: ' . $this->article->title)
-            ->action('View Published Article', route('article.view', $this->article->slug));
+            ->action('View Published Article', route('article.show', $this->article->slug));
     }
 
     public function toDatabase(object $notifiable): array
