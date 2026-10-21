@@ -36,6 +36,7 @@ class IssueController extends Controller
             'status' => ['required', 'in:draft,published'],
             'published_on' => ['nullable', 'date'],
             'description' => ['nullable', 'string'],
+            'cover_image' => ['nullable', 'image', 'max:2048'],
         ]);
 
         $slug = \Illuminate\Support\Str::slug($validated['title']) . '-' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(4));
@@ -48,11 +49,44 @@ class IssueController extends Controller
         $issue->published_on = $validated['published_on'] ?? ($validated['status'] === 'published' ? now() : null);
         $issue->description = $validated['description'];
         $issue->slug = $slug;
+
+        if ($request->hasFile('cover_image')) {
+            $issue->cover_image_path = $request->file('cover_image')->store('issue-covers', 'public');
+        }
+
         $issue->save();
 
         return redirect()
             ->route('editor.issues.index')
             ->with('success', 'Issue created successfully.');
+    }
+
+    /**
+     * Records the journal's approved editorial sequence for an issue's
+     * articles. Positions arrive as `order[<articleId>] = <position>`; every
+     * id must belong to this very issue (no cross-issue tampering), and
+     * articles the form omitted keep their stored order.
+     */
+    public function reorder(Request $request, Issue $issue): RedirectResponse
+    {
+        $validated = $request->validate([
+            'order' => ['required', 'array'],
+            'order.*' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $issueArticleIds = $issue->articles()->pluck('id')->all();
+        $unknown = array_diff(array_keys($validated['order']), $issueArticleIds);
+
+        abort_if($unknown !== [], 422, 'One or more articles do not belong to this issue.');
+
+        foreach ($validated['order'] as $articleId => $position) {
+            Article::where('id', $articleId)->where('issue_id', $issue->id)
+                ->update(['issue_order' => (int) $position]);
+        }
+
+        return redirect()
+            ->route('editor.issues.show', $issue)
+            ->with('success', 'Article order saved for this issue.');
     }
 
     public function show(Issue $issue): View
@@ -146,6 +180,34 @@ class IssueController extends Controller
             ->with('success', 'Compiled journal PDF uploaded successfully.');
     }
 
+    /**
+     * Sets or replaces the issue's cover image (public disk, image only,
+     * 2 MB cap). The old file is removed only after the new one validates, so
+     * a failed upload never leaves the issue with no cover and no file.
+     */
+    public function uploadCover(Request $request, Issue $issue): RedirectResponse
+    {
+        $validated = $request->validate([
+            'cover_image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ]);
+
+        $path = $request->file('cover_image')->store('issue-covers', 'public');
+
+        abort_if($path === false, 422, 'The cover image could not be stored.');
+
+        $previous = $issue->cover_image_path;
+
+        $issue->update(['cover_image_path' => $path]);
+
+        if ($previous) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($previous);
+        }
+
+        return redirect()
+            ->route('editor.issues.show', $issue)
+            ->with('success', 'Issue cover updated successfully.');
+    }
+
     public function deletePdf(Issue $issue): RedirectResponse
     {
         if ($issue->pdf_path) {
@@ -153,9 +215,7 @@ class IssueController extends Controller
             $issue->update([
                 'pdf_path' => null,
             ]);
-        }
-
-        return redirect()
+        }        return redirect()
             ->route('editor.issues.show', $issue->id)
             ->with('success', 'Compiled journal PDF deleted successfully.');
     }

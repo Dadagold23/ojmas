@@ -6,9 +6,10 @@
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
-    <title>{{ config('app.name', 'OJMAS') }}</title>
+    <title>@yield('page_title', config('app.name', 'OJMAS'))</title>
 
-    <meta name="description" content="OJMAS Management System">
+    <meta name="description" content="@yield('meta_description', 'OJMAS Management System')">
+    @yield('head_extras')
     <link rel="icon" href="{{ asset('images/favicon.png') }}">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">

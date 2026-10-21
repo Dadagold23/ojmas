@@ -2,6 +2,70 @@
 
 @section('hide_chrome', '')
 
+@section('page_title', $article->title.' — '.config('journal.title', config('app.name', 'OJMAS')))
+
+@section('meta_description', \Illuminate\Support\Str::limit(strip_tags($article->abstract ?? ''), 155))
+
+@section('head_extras')
+    <link rel="canonical" href="{{ route('article.show', $article->slug) }}">
+
+    {{-- Google Scholar-compatible citation meta tags, emitted only from
+         verified publication metadata. --}}
+    <meta name="citation_title" content="{{ $article->title }}">
+    @foreach($byline as $author)
+        <meta name="citation_author" content="{{ $author['name'] }}">
+    @endforeach
+    @if($article->published_on)
+        <meta name="citation_publication_date" content="{{ $article->published_on->toDateString() }}">
+    @elseif($article->issue?->published_on)
+        <meta name="citation_publication_date" content="{{ $article->issue->published_on->toDateString() }}">
+    @endif
+    <meta name="citation_journal_title" content="{{ config('journal.title', config('app.name', 'OJMAS')) }}">
+    @if($article->issue?->volume?->volume_no)
+        <meta name="citation_volume" content="{{ $article->issue->volume->volume_no }}">
+    @endif
+    @if($article->issue?->issue_no)
+        <meta name="citation_issue" content="{{ $article->issue->issue_no }}">
+    @endif
+    @if($article->pages && preg_match('/^\s*(\d+)\s*[-–]\s*(\d+)\s*$/', $article->pages, $rangeMatch))
+        <meta name="citation_firstpage" content="{{ $rangeMatch[1] }}">
+        <meta name="citation_lastpage" content="{{ $rangeMatch[2] }}">
+    @endif
+    @if($article->doi)
+        <meta name="citation_doi" content="{{ $article->doi }}">
+        <meta name="citation_abstract_html_url" content="{{ route('article.show', $article->slug) }}">
+    @endif
+    <meta name="citation_pdf_url" content="{{ route('article.download', $article->slug) }}">
+
+    <script type="application/ld+json">
+{{ json_encode([
+    '@context' => 'https://schema.org',
+    '@type' => 'ScholarlyArticle',
+    'headline' => $article->title,
+    'abstract' => \Illuminate\Support\Str::limit(strip_tags((string) $article->abstract), 5000),
+    'datePublished' => ($article->published_on ?? $article->issue?->published_on)?->toDateString(),
+    'author' => collect($byline)->map(fn (array $author) => array_filter([
+        '@type' => 'Person',
+        'name' => $author['name'],
+        'affiliation' => $author['institution'] ? ['@type' => 'Organization', 'name' => $author['institution']] : null,
+        'sameAs' => $author['orcid'] ? 'https://orcid.org/'.$author['orcid'] : null,
+    ]))->values()->all(),
+    'isPartOf' => [
+        '@type' => 'PublicationIssue',
+        'issueNumber' => $article->issue?->issue_no,
+        'isPartOf' => [
+            '@type' => 'PublicationVolume',
+            'volumeNumber' => $article->issue?->volume?->volume_no,
+            'name' => config('journal.title', config('app.name', 'OJMAS')),
+        ],
+    ],
+    'identifier' => $article->doi ? ['@type' => 'PropertyValue', 'propertyID' => 'DOI', 'value' => $article->doi] : null,
+    'url' => route('article.show', $article->slug),
+    'license' => $article->licence,
+], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) }}
+    </script>
+@endsection
+
 @section('content')
 <style>
     .article-hero{
@@ -122,9 +186,32 @@
 
                     <h1 class="fw-bold mb-3">{{ $article->title }}</h1>
 
-                    <p class="mb-0 text-white-50">
-                        Scholarly article published on OJMAS.
+                    <p class="mb-2">
+                        @foreach($byline as $bylineAuthor)
+                            <span class="fw-semibold">{{ $bylineAuthor['name'] }}</span>@if($bylineAuthor['is_corresponding'])<sup>*</sup>@endif
+                            @if(!$loop->last){{ $loop->remaining === 1 ? ' & ' : ', ' }}@endif
+                        @endforeach
+                        @if(collect($byline)->contains(fn ($a) => $a['is_corresponding']))
+                            <sup>*</sup><span class="small text-white-50 ms-1">corresponding author</span>
+                        @endif
                     </p>
+
+                    <p class="mb-0 text-white-50">
+                        @if($article->issue?->volume)
+                            {{ config('journal.title', 'OJMAS Journal') }} ·
+                            Volume {{ $article->issue->volume->volume_no }}@if($article->issue->issue_no!==null), Issue {{ $article->issue->issue_no }}@endif
+                            @if($article->issue->published_on) · {{ $article->issue->published_on->format('F Y') }}@endif
+                        @else
+                            Scholarly article published on OJMAS.
+                        @endif
+                    </p>
+                    @if($article->doi)
+                        <p class="mb-0 mt-2">
+                            <a href="https://doi.org/{{ $article->doi }}" class="link-light text-decoration-underline" target="_blank" rel="noopener">
+                                https://doi.org/{{ $article->doi }}
+                            </a>
+                        </p>
+                    @endif
                 </div>
 
                 <div class="col-lg-3 text-lg-end mt-4 mt-lg-0">
@@ -166,6 +253,51 @@
                     </div>
                 </div>
             @endif
+
+            {{-- Citation formats: rendered from verified metadata only; every
+                 field the record lacks is stated rather than invented. --}}
+            <div class="card content-card mt-4" id="cite" data-aos="fade-up" data-aos-delay="150">
+                <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+                    <h5 class="fw-bold mb-3"><i class="bi bi-quote me-1"></i>Cite this article</h5>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    @if(!empty($citations['limitations']))
+                        <div class="alert alert-warning py-2 small rounded-3 mb-3">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            The official record appears to be missing some bibliographic details, so the citations are incomplete in these respects:
+                            <ul class="mb-0 mt-1">
+                                @foreach($citations['limitations'] as $limitation)
+                                    <li>{{ $limitation }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
+                    <label class="meta-label mb-1" for="citation-apa">APA 7 (select all and copy)</label>
+                    <textarea id="citation-apa" readonly rows="4" class="form-select-like w-100 border rounded-3 p-2 mb-3 bg-light" style="font-size:.9rem; resize:vertical;">{{ $citations['apa'] }}</textarea>
+
+                    <details class="mb-2">
+                        <summary class="fw-semibold small">More citation formats</summary>
+                        <label class="meta-label mb-1 mt-2" for="citation-mla">MLA</label>
+                        <textarea id="citation-mla" readonly rows="4" class="w-100 border rounded-3 p-2 mb-3 bg-light" style="font-size:.9rem; resize:vertical;">{{ $citations['mla'] }}</textarea>
+
+                        <label class="meta-label mb-1" for="citation-chicago">Chicago</label>
+                        <textarea id="citation-chicago" readonly rows="4" class="w-100 border rounded-3 p-2 mb-3 bg-light" style="font-size:.9rem; resize:vertical;">{{ $citations['chicago'] }}</textarea>
+                    </details>
+
+                    <div class="d-flex flex-wrap gap-2 mt-2">
+                        <a href="{{ route('article.cite', [$article->slug, 'bibtex']) }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-filetype-bib me-1"></i>BibTeX
+                        </a>
+                        <a href="{{ route('article.cite', [$article->slug, 'ris']) }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-file-earmark-arrow-down me-1"></i>RIS
+                        </a>
+                        <a href="{{ route('article.cite', [$article->slug, 'txt']) }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-filetype-txt me-1"></i>Plain text citation
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="col-lg-4">
@@ -175,16 +307,14 @@
                 </div>
                 <div class="card-body px-4 pb-4">
                     <div class="mb-3">
-                        <div class="meta-label">Author</div>
-                        <div class="meta-value">{{ $article->author->name ?? 'Unknown Author' }}</div>
-                    </div>
-
-                    @if(!empty($article->submission_no))
-                        <div class="mb-3">
-                            <div class="meta-label">Submission No</div>
-                            <div class="meta-value">{{ $article->submission_no }}</div>
+                        <div class="meta-label">Author list</div>
+                        <div class="meta-value">
+                            @foreach($byline as $bylineAuthor)
+                                {{ $bylineAuthor['name'] }}@if($bylineAuthor['is_corresponding']) <span class="small">(corresponding)</span>@endif
+                                {{ !$loop->last ? ($loop->remaining === 1 ? ' & ' : ', ') : '' }}
+                            @endforeach
                         </div>
-                    @endif
+                    </div>
 
                     @if(!empty($article->subject_area))
                         <div class="mb-3">
@@ -193,41 +323,74 @@
                         </div>
                     @endif
 
+                    @if($article->pages)
+                        <div class="mb-3">
+                            <div class="meta-label">Pages</div>
+                            <div class="meta-value">{{ $article->pages }}</div>
+                        </div>
+                    @endif
+
+                    @if($article->doi)
+                        <div class="mb-3">
+                            <div class="meta-label">DOI</div>
+                            <div class="meta-value">
+                                <a href="https://doi.org/{{ $article->doi }}" class="text-decoration-none" target="_blank" rel="noopener">
+                                    https://doi.org/{{ $article->doi }}
+                                </a>
+                            </div>
+                        </div>
+                    @endif
+
                     <div class="mb-3">
                         <div class="meta-label">Published Date</div>
-                        <div class="meta-value">{{ $article->created_at?->format('d M Y') }}</div>
+                        <div class="meta-value">{{ ($article->published_on ?? $article->issue?->published_on)?->format('d M Y') ?? $article->created_at?->format('d M Y') }}</div>
                     </div>
 
-                    <div class="mb-0">
-                        <div class="meta-label">Status</div>
-                        <div class="meta-value">{{ ucfirst($article->status ?? 'published') }}</div>
-                    </div>
+                    @if($article->licence || $article->copyright_note)
+                        <div class="mb-3">
+                            <div class="meta-label">Licence</div>
+                            <div class="meta-value">
+                                {{ $article->licence ?? '' }}@if($article->licence && $article->copyright_note) · @endif{{ $article->copyright_note ?? '' }}
+                            </div>
+                        </div>
+                    @endif
                 </div>
             </div>
 
             <div class="card meta-card mt-4" data-aos="fade-left" data-aos-delay="100">
                 <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
-                    <h5 class="fw-bold mb-3">Co-Authors</h5>
+                    <h5 class="fw-bold mb-3">Authors and Affiliations</h5>
                 </div>
                 <div class="card-body px-4 pb-4">
-                    @php
-                        $coAuthors = $article->submission?->articleAuthors?->sortBy('author_order') ?? collect();
-                    @endphp
-
-                    @forelse($coAuthors as $coAuthor)
+                    @forelse($byline as $index => $bylineAuthor)
                         <div class="border rounded-4 p-3 mb-3">
                             <div class="d-flex justify-content-between align-items-start gap-2">
-                                <div class="fw-semibold">{{ $coAuthor->full_name }}</div>
-                                @if($coAuthor->is_corresponding)
+                                <div class="fw-semibold">{{ $index + 1 }}. {{ $bylineAuthor['name'] }}</div>
+                                @if($bylineAuthor['is_corresponding'])
                                     <span class="badge bg-primary-subtle text-primary text-uppercase">Corresponding</span>
                                 @endif
                             </div>
-                            <div class="small text-muted">{{ $coAuthor->email ?? 'No email provided' }}</div>
-                            <div class="small mt-1">{{ $coAuthor->institution ?? 'Institution not provided' }}</div>
-                            <div class="small text-muted">{{ $coAuthor->country ?? '' }}</div>
+
+                            @if($bylineAuthor['institution'])
+                                <div class="small mt-1">{{ $bylineAuthor['institution'] }}@if($bylineAuthor['country']) · {{ $bylineAuthor['country'] }}@endif</div>
+                            @elseif($bylineAuthor['country'])
+                                <div class="small mt-1">{{ $bylineAuthor['country'] }}</div>
+                            @endif
+
+                            @if($bylineAuthor['email'])
+                                <div class="small text-muted">{{ $bylineAuthor['email'] }}</div>
+                            @endif
+
+                            @if($bylineAuthor['orcid'])
+                                <div class="small mt-1">
+                                    <a href="https://orcid.org/{{ $bylineAuthor['orcid'] }}" class="text-decoration-none" target="_blank" rel="noopener">
+                                        <i class="bi bi-fingerprint me-1"></i>ORCID: {{ $bylineAuthor['orcid'] }}
+                                    </a>
+                                </div>
+                            @endif
                         </div>
                     @empty
-                        <div class="text-muted">No co-authors listed.</div>
+                        <div class="text-muted">Author names are not on record for this article yet.</div>
                     @endforelse
 
                     @if(!empty($article->issue))
@@ -262,7 +425,12 @@
             <div class="pdf-preview">
                 <div class="pdf-body">
                     <div class="article-title-pdf">{{ $article->title }}</div>
-                    <div class="pdf-meta"><strong>Author:</strong> {{ $article->author->name ?? 'Unknown Author' }}</div>
+                    <div class="pdf-meta"><strong>Authors:</strong>
+                        @foreach($byline as $bylineAuthor)
+                            {{ $bylineAuthor['name'] }}
+                            {{ !$loop->last ? ($loop->remaining === 1 ? ' & ' : ', ') : '' }}
+                        @endforeach
+                    </div>
                     <div class="pdf-meta"><strong>Published:</strong> {{ $article->published_on?->format('d M Y') ?? ($article->created_at?->format('d M Y') ?? '-') }}</div>
 
                     <div class="section-heading">Full Text</div>

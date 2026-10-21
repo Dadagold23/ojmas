@@ -49,15 +49,18 @@ modified** (this document is the only file added).
   with `Submission::articleAuthors()` / `coAuthors()` relations.
 
 ### 2.4 Author order, affiliations, ORCID, DOI, page range, publication date
-- Author order: `author_order` ✓ (schema).
+- Author order: `author_order` ✓ (schema). The author submission flow
+  **does** populate this table at submission time: the submitting account is
+  order 1 (`is_corresponding`), and the form's `co_authors[]` rows are created
+  with `author_order` starting at 2 (verified in
+  `Author\SubmissionController::store`). The empty dev table reflects zero dev
+  submissions, not a missing writer.
 - Affiliations: only a single `institution` string per author — no distinct
   affiliation/link association. Adequate for display; extend additively if richer
   attribution is needed later.
-- ORCID: **missing entirely** (additive column needed); "multiple authors" is
-  modelled, but — verified by grep and empty-table check — **nothing in the
-  application ever writes to `article_authors`**: there is no capture UI and no
-  publication-time snapshot. Author attribution is today effectively
-  "the submitting account only".
+- ORCID: **missing entirely** (additive column needed). Editorial correction of
+  author rows after submission has no UI today — attribution is captured
+  forward-only from the submission form.
 - DOI ✓ (`articles.doi`, nullable); page range ✓ (`articles.pages` string);
   publication date ✓ (`articles.published_on` / `article_publications.published_on`).
 
@@ -170,5 +173,7 @@ modified** (this document is the only file added).
 1. Production HTTPS/service-worker/VAPID feasibility (Module 3 deploy prerequisite).
 2. Production queue worker + cron for scheduling (the standing S9 item).
 3. PHP upload/post limits for video/audio on production host.
-4. Whether real co-author metadata exists anywhere on production to backfill
-   `article_authors`, or attribution must be seeded forward-only (no fabricated data).
+4. Whether real co-author metadata exists on production for already-published
+   articles: new submissions capture co-authors automatically; legacy published
+   articles may still have no `article_authors` rows, so the byline falls back to
+   the submitting account until editors/records supply data (never fabricated).

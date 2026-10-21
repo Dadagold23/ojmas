@@ -11,7 +11,7 @@ class ArticleAuthor extends Model
 
     protected $fillable = [
         'submission_id','full_name','email','institution',
-        'country','is_corresponding','author_order'
+        'orcid','country','is_corresponding','author_order'
     ];
 
     public function submission()

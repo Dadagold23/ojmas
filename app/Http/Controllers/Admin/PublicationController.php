@@ -48,6 +48,8 @@ class PublicationController extends Controller
             'issue_id'      => ['required', 'exists:issues,id'],
             'published_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:20480'],
             'note'          => ['nullable', 'string', 'max:1000'],
+            'licence'       => ['nullable', 'string', 'max:100'],
+            'copyright_note'=> ['nullable', 'string', 'max:255'],
         ]);
 
         $submission = Submission::with('author')->findOrFail($validated['submission_id']);
@@ -67,7 +69,11 @@ class PublicationController extends Controller
             $submission,
             (int) $validated['issue_id'],
             $pdfPath,
-            $validated['note'] ?? null
+            $validated['note'] ?? null,
+            array_filter([
+                'licence' => $validated['licence'] ?? null,
+                'copyright_note' => $validated['copyright_note'] ?? null,
+            ], fn ($value) => $value !== null && $value !== '')
         );
 
         if ($request->boolean('notify_author')) {

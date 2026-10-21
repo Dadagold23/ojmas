@@ -14,14 +14,13 @@ class Volume extends Model
         'year',
         'status',
         'description',
+        'cover_image_path',
         'slug',
         'volume_no',
     ];
-
 
     public function issues()
     {
         return $this->hasMany(\App\Models\Issue::class);
     }
-
 }

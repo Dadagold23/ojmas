@@ -12,7 +12,7 @@ class PublicationService
 {
     public function __construct(private PublicationReadinessService $readiness) {}
 
-    public function publish(Submission $submission, int $issueId, ?string $pdfPath = null, ?string $note = null): Article
+    public function publish(Submission $submission, int $issueId, ?string $pdfPath = null, ?string $note = null, array $attributes = []): Article
     {
         // Module 4: publication may not follow merely from an editor finishing
         // editing. The readiness gate refuses, constructively, until every
@@ -40,7 +40,7 @@ class PublicationService
 
         $article = Article::updateOrCreate(
             ['submission_id' => $submission->id],
-            [
+            array_merge([
                 'issue_id' => $issueId,
                 'title' => $submission->title,
                 'slug' => Str::slug($submission->title) . '-' . strtolower(Str::random(5)),
@@ -48,7 +48,7 @@ class PublicationService
                 'keywords' => $submission->keywords,
                 'published_on' => now(),
                 'status' => 'published',
-            ]
+            ], array_intersect_key($attributes, array_flip(['licence', 'copyright_note'])))
         );
 
         ArticlePublication::updateOrCreate(

@@ -57,6 +57,13 @@
                         <input type="text" name="subject_area" class="form-control" value="{{ old('subject_area') }}"
                                placeholder="e.g. Computer Science">
                     </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Your ORCID <span class="text-muted fw-normal">(optional, will appear in the published byline)</span></label>
+                        <input type="text" name="author_orcid" class="form-control" value="{{ old('author_orcid', auth()->user()->orcid) }}"
+                               placeholder="0000-0000-0000-0000">
+                        <div class="file-hint mt-1">16 digits, with or without hyphens</div>
+                        @error('author_orcid')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                    </div>
                 </div>
             </div>
         </div>
@@ -118,13 +125,16 @@
             <div class="col-md-6">
                 <input type="email" name="co_authors[__i__][email]" class="form-control form-control-sm" placeholder="Email">
             </div>
-            <div class="col-md-5">
+            <div class="col-md-4">
                 <input type="text" name="co_authors[__i__][institution]" class="form-control form-control-sm" placeholder="Institution">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
+                <input type="text" name="co_authors[__i__][orcid]" class="form-control form-control-sm" placeholder="ORCID (optional, 16 digits)">
+            </div>
+            <div class="col-md-3">
                 <input type="text" name="co_authors[__i__][country]" class="form-control form-control-sm" placeholder="Country">
             </div>
-            <div class="col-md-3 d-flex align-items-center">
+            <div class="col-md-2 d-flex align-items-center">
                 <button type="button" class="btn btn-outline-danger btn-sm w-100 remove-co-author">
                     <i class="bi bi-trash"></i> Remove
                 </button>

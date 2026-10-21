@@ -56,6 +56,8 @@ Route::get('/article/{slug}',          [HomeController::class, 'article'])->name
 Route::get('/article/{slug}/pdf',      [HomeController::class, 'articlePdf'])->name('article.pdf');
 Route::get('/article/{slug}/download', [HomeController::class, 'downloadArticlePdf'])->name('article.download');
 Route::get('/article/{slug}/preview',  [HomeController::class, 'articlePreview'])->name('article.preview');
+Route::get('/article/{slug}/cite/{format}', [HomeController::class, 'cite'])->name('article.cite');
+Route::get('/sitemap.xml',             [HomeController::class, 'sitemap'])->name('sitemap');
 
 // ─── Auth routes ──────────────────────────────────────────────────────────────
 require __DIR__.'/auth.php';
@@ -152,6 +154,8 @@ Route::middleware(array_filter([
         Route::get('/issues/create', [EditorIssueController::class, 'create'])->name('issues.create');
         Route::post('/issues',       [EditorIssueController::class, 'store'])->name('issues.store');
         Route::get('/issues/{issue}', [EditorIssueController::class, 'show'])->name('issues.show');
+        Route::post('/issues/{issue}/reorder', [EditorIssueController::class, 'reorder'])->name('issues.reorder');
+        Route::post('/issues/{issue}/upload-cover', [EditorIssueController::class, 'uploadCover'])->name('issues.upload-cover');
         Route::post('/issues/{issue}/attach-articles', [EditorIssueController::class, 'attachArticles'])->name('issues.attach-articles');
         Route::post('/issues/{issue}/upload-pdf', [EditorIssueController::class, 'uploadPdf'])->name('issues.upload-pdf');
         Route::delete('/issues/{issue}/delete-pdf', [EditorIssueController::class, 'deletePdf'])->name('issues.delete-pdf');

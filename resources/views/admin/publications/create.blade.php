@@ -94,6 +94,25 @@
                     @error('note')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
 
+                {{-- Licence and copyright statement: shown on the public
+                     article page and inside generated citations only when the
+                     journal has recorded them. --}}
+                <div class="row g-3 mb-4">
+                    <div class="col-md-5">
+                        <label class="form-label fw-semibold small">Licence (optional)</label>
+                        <input type="text" name="licence" class="form-control @error('licence') is-invalid @enderror"
+                               value="{{ old('licence') }}" placeholder="e.g. CC BY 4.0">
+                        <div class="form-text">Leave empty if the journal has not adopted a licence for this article.</div>
+                        @error('licence')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="col-md-7">
+                        <label class="form-label fw-semibold small">Copyright statement (optional)</label>
+                        <input type="text" name="copyright_note" class="form-control @error('copyright_note') is-invalid @enderror"
+                               value="{{ old('copyright_note') }}" placeholder="e.g. © 2026 The Authors. Published by OJMAS.">
+                        @error('copyright_note')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+                </div>
+
                 {{-- Notify Author toggle --}}
                 <div class="mb-4 p-3 bg-light rounded-3 border">
                     <label class="notify-toggle d-flex align-items-center gap-2 mb-0 user-select-none">

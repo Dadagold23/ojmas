@@ -95,30 +95,59 @@
             <div class="card panel-card" data-aos="fade-up">
                 <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
                     <h5 class="fw-bold mb-1">Articles in this Issue</h5>
-                    <p class="text-muted mb-3">Published articles currently attached to this issue.</p>
+                    <p class="text-muted mb-3">
+                        Attach order below decides the sequence readers see in the
+                        public table of contents. Higher numbers appear later.
+                    </p>
                 </div>
 
                 <div class="card-body px-4 pb-4">
-                    <div class="row g-3">
-                        @forelse($issue->articles ?? [] as $article)
-                            <div class="col-12">
-                                <div class="article-row">
-                                    <div class="fw-bold mb-2">{{ $article->title }}</div>
-                                    <div class="small text-muted mb-2">
-                                        <i class="bi bi-person-circle me-1"></i>
-                                        {{ $article->author->name ?? 'Unknown Author' }}
+                    @if($issue->articles->count())
+                        <form method="POST" action="{{ route('editor.issues.reorder', $issue->id) }}">
+                            @csrf
+                            <div class="d-flex flex-column gap-3">
+                                @foreach($issue->orderedArticles()->get() as $article)
+                                    <div class="article-row">
+                                        <div class="d-flex justify-content-between align-items-start gap-3">
+                                            <div>
+                                                <div class="fw-bold mb-2">{{ $article->title }}</div>
+                                                <div class="small text-muted mb-2">
+                                                    <i class="bi bi-person-circle me-1"></i>
+                                                    {{ $article->author->name ?? 'Unknown Author' }}
+                                                    @if($article->issue_order)
+                                                        <span class="badge bg-light text-dark border ms-1">current position {{ $article->issue_order }}</span>
+                                                    @else
+                                                        <span class="badge bg-warning-subtle text-warning-emphasis border ms-1">no order set yet</span>
+                                                    @endif
+                                                </div>
+                                                <div class="text-muted">
+                                                    {{ \Illuminate\Support\Str::limit($article->abstract, 180) }}
+                                                </div>
+                                            </div>
+                                            <div style="min-width: 110px;">
+                                                <label class="form-label fw-semibold small mb-1" for="order-{{ $article->id }}">Position</label>
+                                                <input
+                                                    type="number"
+                                                    id="order-{{ $article->id }}"
+                                                    name="order[{{ $article->id }}]"
+                                                    class="form-control @error('order.*') is-invalid @enderror"
+                                                    min="1"
+                                                    value="{{ $article->issue_order ?? $loop->iteration }}"
+                                                >
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="text-muted">
-                                        {{ \Illuminate\Support\Str::limit($article->abstract, 180) }}
-                                    </div>
-                                </div>
+                                @endforeach
                             </div>
-                        @empty
-                            <div class="col-12 text-muted">
-                                No articles attached to this issue yet.
-                            </div>
-                        @endforelse
-                    </div>
+                            <button type="submit" class="btn btn-primary mt-3">
+                                <i class="bi bi-arrow-down-up me-1"></i>Save Order
+                            </button>
+                        </form>
+                    @else
+                        <div class="text-muted">
+                            No articles attached to this issue yet.
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -176,6 +205,40 @@
 
                         <button type="submit" class="btn btn-primary">
                             Attach Selected Articles
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Issue Cover Card -->
+            <div class="card panel-card mt-4" data-aos="fade-up" data-aos-delay="125">
+                <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+                    <h5 class="fw-bold mb-1">Issue Cover</h5>
+                    <p class="text-muted mb-3">Shown on the public archive and issue pages.</p>
+                </div>
+
+                <div class="card-body px-4 pb-4">
+                    @if($issue->cover_image_path)
+                        <img src="{{ \Illuminate\Support\Facades\Storage::url($issue->cover_image_path) }}"
+                             alt="Current cover of {{ $issue->title }}"
+                             class="img-fluid rounded-3 mb-3 border" style="max-height: 220px;">
+                    @else
+                        <div class="text-muted small mb-3">
+                            <i class="bi bi-image me-1"></i>No cover image set for this issue.
+                        </div>
+                    @endif
+
+                    <form method="POST" action="{{ route('editor.issues.upload-cover', $issue->id) }}" enctype="multipart/form-data">
+                        @csrf
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small">{{ $issue->cover_image_path ? 'Replace cover' : 'Upload cover' }} <span class="text-danger">*</span></label>
+                            <input type="file" name="cover_image" class="form-control" accept=".jpg,.jpeg,.png,.webp" required>
+                            <div class="form-text">JPG, PNG or WebP — max 2 MB.</div>
+                            @error('cover_image')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-cloud-upload me-1"></i>
+                            {{ $issue->cover_image_path ? 'Replace Cover' : 'Upload Cover' }}
                         </button>
                     </form>
                 </div>

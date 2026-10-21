@@ -1,5 +1,13 @@
 @extends('layouts.app')
 
+@section('page_title', ($issue->volume ? 'Volume '.$issue->volume->volume_no.', ' : '').'Issue '.$issue->issue_no.' — '.config('journal.title', config('app.name', 'OJMAS')))
+
+@section('meta_description', \Illuminate\Support\Str::limit(strip_tags($issue->description ?? ('Table of contents for'.$issue->title)), 155))
+
+@section('head_extras')
+    <link rel="canonical" href="{{ route('issue.show', $issue->id) }}">
+@endsection
+
 @section('content')
 <style>
     .issue-hero {
@@ -59,11 +67,11 @@
                 <div class="col-lg-9">
                     <div class="d-flex flex-wrap gap-2 mb-3">
                         <span class="badge bg-indigo text-white px-3 py-2">
-                            {{ $issue->volume ? $issue->volume->title : 'Journal Issue' }}
+                            {{ $issue->volume ? 'Volume '.$issue->volume->volume_no.' — '.$issue->volume->title : 'Journal Issue' }}
                         </span>
                         @if($issue->published_on)
                             <span class="badge bg-light text-dark px-3 py-2 border">
-                                {{ \Carbon\Carbon::parse($issue->published_on)->format('F Y') }}
+                                Published {{ \Carbon\Carbon::parse($issue->published_on)->format('j F Y') }}
                             </span>
                         @endif
                     </div>
@@ -74,15 +82,26 @@
                         @if($issue->issue_no)
                             Issue Number: {{ $issue->issue_no }} |
                         @endif
-                        Total Articles: {{ $issue->articles->count() }}
+                        Total Articles: {{ $tableOfContents->count() }}
                     </p>
+                    @if($issue->description)
+                        <p class="text-white-50 small mb-0 mt-2">{{ \Illuminate\Support\Str::limit($issue->description, 220) }}</p>
+                    @endif
                 </div>
 
                 <div class="col-lg-3 text-lg-end mt-4 mt-lg-0">
-                    <div class="d-flex flex-column gap-2">
-                        <a href="{{ route('issue.pdf', $issue->id) }}" class="btn btn-warning fw-semibold">
-                            <i class="bi bi-file-earmark-pdf me-2"></i>Download Issue PDF
-                        </a>
+                    @if($issue->cover_image_path)
+                        <img src="{{ \Illuminate\Support\Facades\Storage::url($issue->cover_image_path) }}" alt="Cover of {{ $issue->title }}"
+                             class="img-fluid rounded-4 mb-3 shadow-sm" style="max-height: 260px;">
+                    @endif
+                    @if($issue->pdf_path)
+                        <div class="d-flex flex-column gap-2 align-items-lg-end">
+                            <a href="{{ route('issue.pdf', $issue->id) }}" class="btn btn-warning fw-semibold">
+                                <i class="bi bi-file-earmark-pdf me-2"></i>Download Full-Issue PDF
+                            </a>
+                        </div>
+                    @endif
+                    <div class="d-flex flex-column gap-2 align-items-lg-end mt-2">
                         <a href="{{ route('issues.index') }}" class="btn btn-outline-light">
                             <i class="bi bi-arrow-left me-2"></i>Back to Issues
                         </a>
@@ -101,29 +120,46 @@
                 </div>
                 <div class="card-body p-4">
                     <div class="d-flex flex-column gap-3">
-                        @forelse($issue->articles ?? [] as $article)
+                        @forelse($tableOfContents as $article)
                             <div class="article-item p-4">
+                                <div class="d-flex align-items-baseline gap-2 mb-2">
+                                    <span class="badge bg-dark text-white px-2 py-1">{{ $loop->iteration }}</span>
+                                    <span class="badge text-bg-light border text-muted">{{ $article->subject_area ?? ($article->submission?->subject_area ? 'Article' : 'Article') }}</span>
+                                </div>
+
                                 <h5 class="fw-bold mb-2">
                                     <a href="{{ route('article.show', $article->slug) }}" class="text-decoration-none text-dark">
                                         {{ $article->title }}
                                     </a>
                                 </h5>
 
-                                <div class="small text-muted mb-3">
-                                    <i class="bi bi-person-circle me-1"></i>
-                                    {{ $article->author->name ?? 'Unknown Author' }}
-                                    @if($article->pages)
-                                        | Pages: {{ $article->pages }}
-                                    @endif
+                                <div class="small mb-2">
+                                    @foreach($bylines->get($article->id, []) as $bylineAuthor)
+                                        {{ $bylineAuthor['name'] }}{{ !$loop->last ? ($loop->remaining === 1 ? ' & ' : ', ') : '' }}
+                                    @endforeach
                                 </div>
 
+                                @if($article->pages || $article->doi || $article->published_on)
+                                    <div class="small text-muted mb-3">
+                                        @if($article->pages)
+                                            | Pages: {{ $article->pages }}
+                                        @endif
+                                        @if($article->issue->published_on)
+                                            | Published: {{ \Carbon\Carbon::parse($article->published_on ?? $article->issue->published_on)->format('j F Y') }}
+                                        @endif
+                                        @if($article->doi)
+                                            | <a href="https://doi.org/{{ $article->doi }}" target="_blank" rel="noopener">DOI: {{ $article->doi }}</a>
+                                        @endif
+                                    </div>
+                                @endif
+
                                 <p class="text-muted mb-3">
-                                    {{ \Illuminate\Support\Str::limit($article->abstract, 200) }}
+                                    {{ \Illuminate\Support\Str::limit(strip_tags($article->abstract), 200) }}
                                 </p>
 
                                 <div class="d-flex gap-2">
                                     <a href="{{ route('article.show', $article->slug) }}" class="btn btn-sm btn-outline-primary">
-                                        Read Abstract
+                                        Read Article
                                     </a>
                                     <a href="{{ route('article.download', $article->slug) }}" class="btn btn-sm btn-outline-success">
                                         <i class="bi bi-download me-1"></i> Download PDF
@@ -170,7 +206,7 @@
                         </div>
                         <div class="col-6">
                             <div class="meta-label">Total Articles</div>
-                            <div class="meta-value">{{ $issue->articles->count() }}</div>
+                            <div class="meta-value">{{ $tableOfContents->count() }}</div>
                         </div>
                     </div>
                 </div>

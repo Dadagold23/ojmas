@@ -7,6 +7,8 @@ use App\Models\Submission;
 use App\Models\Article;
 use App\Models\Issue;
 use App\Models\Volume;
+use App\Services\Publications\ArticleBylineService;
+use App\Services\Publications\CitationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -63,6 +65,46 @@ class HomeController extends Controller
         $search  = trim((string) $request->get('q'));
         $subject = trim((string) $request->get('subject'));
         $year    = trim((string) $request->get('year'));
+        $volume  = trim((string) $request->get('volume'));
+
+        // The archive's primary listing: published issues as organised units —
+        // volume, year, theme, cover, article count and (where it exists) the
+        // full-issue PDF. Only published material can ever appear.
+        $issues = Issue::with(['volume', 'articles'])
+            ->where('status', 'published')
+            ->when($search, function ($query) use ($search) {
+                $query->where(function ($sub) use ($search) {
+                    $sub->where('title', 'like', "%{$search}%")
+                        ->orWhere('issue_no', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhereHas('volume', fn ($vq) => $vq->where('title', 'like', "%{$search}%")
+                            ->orWhere('volume_no', 'like', "%{$search}%")
+                            ->orWhere('year', 'like', "%{$search}%"))
+                        ->orWhereHas('articles', fn ($aq) => $aq->where('status', 'published')
+                            ->where(fn ($w) => $w->where('title', 'like', "%{$search}%")
+                                ->orWhere('abstract', 'like', "%{$search}%")
+                                ->orWhere('keywords', 'like', "%{$search}%")));
+                });
+            })
+            ->when($volume !== '' && $volume !== null, fn ($query) =>
+                $query->whereHas('volume', fn ($vq) => $vq->where('volume_no', $volume)))
+            ->when($year !== '' && $year !== null, fn ($query) =>
+                $query->whereYear('published_on', $year))
+            ->orderByDesc('published_on')
+            ->paginate(12)
+            ->withQueryString();
+
+        $issueYearList = Issue::where('status', 'published')
+            ->whereNotNull('published_on')
+            ->get(['published_on'])
+            ->map(fn ($issue) => substr((string) $issue->published_on, 0, 4))
+            ->unique()
+            ->sortDesc()
+            ->values();
+
+        $volumeList = \App\Models\Volume::where('status', 'published')
+            ->orderByDesc('volume_no')
+            ->get(['id', 'volume_no', 'title', 'year']);
 
         $articles = Article::with(['submission.articleAuthors', 'author', 'issue.volume'])
             ->where('status', 'published')
@@ -107,11 +149,11 @@ class HomeController extends Controller
             ->when($subject, function ($query) use ($subject) {
                 $query->whereHas('submission', fn($q) => $q->where('subject_area', $subject));
             })
-            ->when($year, function ($query) use ($year) {
+            ->when($year !== '' && $year !== null, function ($query) use ($year) {
                 $query->whereYear('published_on', $year);
             })
             ->latest('published_on')
-            ->paginate(12)
+            ->paginate(12, ['*'], 'page_a')
             ->withQueryString();
 
         $subjects = \App\Models\Submission::whereHas('article', function ($q) {
@@ -124,17 +166,10 @@ class HomeController extends Controller
             ->orderBy('subject_area')
             ->pluck('subject_area');
 
-        $years = Article::where('status', 'published')
-            ->whereHas('issue', function ($q) {
-                $q->where('status', 'published');
-            })
-            ->whereNotNull('published_on')
-            ->selectRaw('YEAR(published_on) as year')
-            ->distinct()
-            ->orderByDesc('year')
-            ->pluck('year');
-
-        return view('archives', compact('articles', 'subjects', 'years', 'search', 'subject', 'year'));
+        return view('archives', compact(
+            'articles', 'issues', 'subjects', 'issueYearList', 'volumeList',
+            'search', 'subject', 'year', 'volume',
+        ));
     }
 
     public function issues(Request $request)
@@ -226,7 +261,113 @@ class HomeController extends Controller
             ->where('status', 'published')
             ->firstOrFail();
 
-        return view('article', compact('article'));
+        $byline = app(\App\Services\Publications\ArticleBylineService::class)->for($article);
+        $citations = app(\App\Services\Publications\CitationService::class)->for($article);
+
+        return view('article', compact('article', 'byline', 'citations'));
+    }
+
+    /**
+     * Citation exports (apamla/chicago/bibtex/ris) as plain-text downloads,
+     * built from exactly the same citation data the article page shows.
+     */
+    public function cite(string $slug, string $format)
+    {
+        abort_unless(in_array($format, ['apa', 'mla', 'chicago', 'bibtex', 'ris', 'txt'], true), 404);
+
+        $article = Article::with(['issue.volume', 'submission.articleAuthors'])
+            ->where('slug', $slug)
+            ->where('status', 'published')
+            ->firstOrFail();
+
+        $citations = app(\App\Services\Publications\CitationService::class)->for($article);
+
+        $content = $format === 'txt' ? $citations['apa'] : $citations[$format];
+
+        $extension = $format === 'txt' ? 'txt' : $format;
+        $contentType = match ($format) {
+            'bibtex' => 'application/x-bibtex; charset=UTF-8',
+            'ris' => 'application/x-research-info-systems; charset=UTF-8',
+            default => 'text/plain; charset=UTF-8',
+        };
+
+        return response($content)
+            ->withHeaders([
+                'Content-Type' => $contentType,
+                'Content-Disposition' => 'attachment; filename="'.$this->citationFileName($article, $extension).'"',
+            ]);
+    }
+
+    private function citationFileName(Article $article, string $extension): string
+    {
+        $base = \Illuminate\Support\Str::slug(substr($article->title, 0, 60));
+
+        return 'ojmas-'.$base.'-'.substr((string) $article->slug, -5).'.'.$extension;
+    }
+
+    /**
+     * XML sitemap for the public journal record: published issues, their
+     * editions pages, published articles, and index pages. Draft material and
+     * unpublished manuscripts can never appear.
+     */
+    public function sitemap()
+    {
+        $baseUrl = rtrim(config('app.url'), '/');
+
+        $issues = \App\Models\Issue::with('volume')
+            ->where('status', 'published')
+            ->orderByDesc('published_on')
+            ->get();
+
+        $articles = \App\Models\Article::with('issue')
+            ->where('status', 'published')
+            ->whereHas('issue', fn ($q) => $q->where('status', 'published'))
+            ->orderByDesc('published_on')
+            ->get();
+
+        $entries = [
+            ['loc' => route('home'), 'priority' => '1.0', 'freq' => 'daily'],
+            ['loc' => route('archives'), 'priority' => '0.9', 'freq' => 'daily'],
+            ['loc' => route('issues.index'), 'priority' => '0.9', 'freq' => 'daily'],
+        ];
+
+        foreach ($issues as $issue) {
+            $entries[] = [
+                'loc' => route('issue.show', $issue->id),
+                'priority' => '0.8',
+                'freq' => 'monthly',
+                'lastmod' => optional($issue->updated_at)->toAtomString(),
+            ];
+        }
+
+        foreach ($articles as $article) {
+            $entries[] = [
+                'loc' => route('article.show', $article->slug),
+                'priority' => '0.8',
+                'freq' => 'yearly',
+                'lastmod' => optional($article->updated_at)->toAtomString(),
+            ];
+        }
+
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n";
+        $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n";
+
+        foreach ($entries as $entry) {
+            $xml .= "  <url>\n";
+            $xml .= '    <loc>'.e($entry['loc'])."</loc>\n";
+
+            if (! empty($entry['lastmod'])) {
+                $xml .= '    <lastmod>'.$entry['lastmod']."</lastmod>\n";
+            }
+
+            $xml .= '    <changefreq>'.$entry['freq']."</changefreq>\n";
+            $xml .= '    <priority>'.$entry['priority']."</priority>\n";
+            $xml .= "  </url>\n";
+        }
+
+        $xml .= '</urlset>';
+
+        return response($xml, 200, ['Content-Type' => 'application/xml; charset=UTF-8']);
     }
 
     public function articlePdf(string $slug)
@@ -348,11 +489,26 @@ class HomeController extends Controller
         $issue = Issue::with([
                 'volume',
                 'articles.author',
+                'articles.submission.articleAuthors',
             ])
             ->where('status', 'published')
             ->findOrFail($id);
 
-        return view('issue', compact('issue'));
+        // Approved editorial sequence; only published articles are presented,
+        // and bylines are resolved once so the ToC shows the same byline as
+        // the article page.
+        $tableOfContents = $issue->orderedArticles()
+            ->where('status', 'published')
+            ->get()
+            ->values();
+
+        $bylineService = app(ArticleBylineService::class);
+        $bylines = collect();
+        foreach ($tableOfContents as $tocArticle) {
+            $bylines[$tocArticle->id] = $bylineService->for($tocArticle);
+        }
+
+        return view('issue', compact('issue', 'tableOfContents', 'bylines'));
     }
 
     public function issuePdf(int $id)

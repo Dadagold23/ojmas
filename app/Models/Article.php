@@ -21,6 +21,9 @@ class Article extends Model
         'subject_area',
         'full_text',
         'pages',
+        'issue_order',
+        'licence',
+        'copyright_note',
         'published_on',
         'status',
     ];

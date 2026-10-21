@@ -25,6 +25,8 @@ class StoreSubmissionRequest extends FormRequest
             'co_authors.*.email' => ['nullable', 'email', 'max:255'],
             'co_authors.*.institution' => ['nullable', 'string', 'max:255'],
             'co_authors.*.country' => ['nullable', 'string', 'max:100'],
+            'co_authors.*.orcid' => ['nullable', 'string', 'max:39'],
+            'author_orcid' => ['nullable', 'string', 'max:39'],
             'manuscript' => ['required', 'file', 'mimes:pdf,doc,docx', 'max:' . self::MAX_UPLOAD_KB],
             'cover_letter' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:' . self::MAX_UPLOAD_KB],
             'supplementary' => ['nullable', 'file', 'mimes:pdf,doc,docx,zip', 'max:' . self::MAX_UPLOAD_KB],

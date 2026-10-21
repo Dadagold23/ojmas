@@ -79,12 +79,21 @@ class SubmissionController extends Controller
                                 'full_name' => $author['full_name'],
                                 'email' => $author['email'] ?? null,
                                 'institution' => $author['institution'] ?? null,
+                                'orcid' => $this->normaliseOrcid($author['orcid'] ?? null),
                                 'country' => $author['country'] ?? null,
                                 'is_corresponding' => false,
                                 'author_order' => $index + 2,
                             ]);
                         }
                     }
+                }
+
+                // The corresponding author's ORCID lives on the user account so
+                // it is reusable across submissions and lands in every byline.
+                if (!empty($validated['author_orcid'] ?? null)) {
+                    auth()->user()->update([
+                        'orcid' => $this->normaliseOrcid($validated['author_orcid']),
+                    ]);
                 }
 
                 foreach (['manuscript', 'cover_letter', 'supplementary'] as $type) {
@@ -261,6 +270,30 @@ class SubmissionController extends Controller
         $file->delete();
 
         return back()->with('success', 'File removed successfully.');
+    }
+
+    /**
+     * Accepts an ORCID either hyphenated or as 16 bare digits and returns the
+     * canonical hyphenated form; anything else is treated as not provided
+     * rather than storing a fabricated identifier.
+     */
+    private function normaliseOrcid($value): ?string
+    {
+        $value = strtoupper(preg_replace('/\s+/', '', trim((string) $value)));
+
+        if ($value === '' || $value === 'X') {
+            return null;
+        }
+
+        if (preg_match('/^\d{4}-\d{4}-\d{4}-\d{3}[0-9X]$/', $value) === 1) {
+            return $value;
+        }
+
+        if (preg_match('/^\d{15}[0-9X]$/', $value) === 1) {
+            return substr($value, 0, 4).'-'.substr($value, 4, 4).'-'.substr($value, 8, 4).'-'.substr($value, 12);
+        }
+
+        return null;
     }
 
     private function ensurePrivateSubmissionStorageIsReady(): void
