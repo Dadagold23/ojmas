@@ -23,17 +23,41 @@ class ProofApprovalController extends Controller
 
         $submission->loadMissing(['author', 'files', 'manuscriptVersions']);
 
+        // The two gate checks, computed from the submission's actual stage
+        // position. They are displayed honestly as True/False and enforced
+        // again when the author submits an approval.
+        $proofChecks = app(\App\Services\Workflow\EditorialWorkflowService::class)
+            ->proofGateChecks($submission);
+
         return view('author.proofs.show', [
             'submission' => $submission,
             'approvals' => ManuscriptProofApproval::where('submission_id', $submission->id)
                 ->latest('id')
                 ->get(),
+            'proofChecks' => $proofChecks,
+            'proofGateSatisfied' => $proofChecks['peer_review_concluded']
+                && $proofChecks['copyediting_completed'],
         ]);
     }
 
     public function store(Request $request, Submission $submission)
     {
         $this->authorize('approveProofs', $submission);
+
+        // Server-side gate, independent of what the form allowed to be
+        // visible: an approval can only ever be recorded once peer review
+        // has concluded and copyediting is complete.
+        $proofChecks = app(\App\Services\Workflow\EditorialWorkflowService::class)
+            ->proofGateChecks($submission);
+
+        if (! $proofChecks['peer_review_concluded'] || ! $proofChecks['copyediting_completed']) {
+            return back()->withErrors([
+                'proofs' => 'The proof-approval gate is not satisfied yet'
+                    .' (peer review concluded: '.($proofChecks['peer_review_concluded'] ? 'True' : 'False')
+                    .', copyediting completed: '.($proofChecks['copyediting_completed'] ? 'True' : 'False').').'
+                    .' No approval was recorded.',
+            ]);
+        }
 
         $validated = $request->validate([
             'status' => ['required', 'in:'.ManuscriptProofApproval::STATUS_APPROVED.','.ManuscriptProofApproval::STATUS_CORRECTIONS],

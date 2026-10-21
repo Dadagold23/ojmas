@@ -237,6 +237,10 @@
                         <a class="nav-link" href="{{ route('issues.index') }}">Issues</a>
                     </li>
 
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ route('ads.calls') }}">Calls for Papers</a>
+                    </li>
+
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             Journal

@@ -25,6 +25,7 @@ use App\Http\Controllers\Reviewer\DashboardController as ReviewerDashboardContro
 use App\Http\Controllers\Reviewer\AssignmentController as ReviewerAssignmentController;
 
 use App\Http\Controllers\Admin\PublicationController as AdminPublicationController;
+use App\Http\Controllers\Admin\AdCampaignController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\ManagingEditorController;
 use App\Http\Controllers\Admin\SystemConfigurationController;
@@ -58,6 +59,8 @@ Route::get('/article/{slug}/download', [HomeController::class, 'downloadArticleP
 Route::get('/article/{slug}/preview',  [HomeController::class, 'articlePreview'])->name('article.preview');
 Route::get('/article/{slug}/cite/{format}', [HomeController::class, 'cite'])->name('article.cite');
 Route::get('/sitemap.xml',             [HomeController::class, 'sitemap'])->name('sitemap');
+Route::get('/calls-for-papers',        [\App\Http\Controllers\AdPublicController::class, 'callsForPapers'])->name('ads.calls');
+Route::get('/ads/{campaign}/click',    [\App\Http\Controllers\AdPublicController::class, 'click'])->middleware('throttle:60,1')->name('ads.click');
 
 // ─── Auth routes ──────────────────────────────────────────────────────────────
 require __DIR__.'/auth.php';
@@ -130,6 +133,21 @@ Route::middleware(array_filter([
     Route::prefix('admin')->name('admin.')->middleware('role:Super Admin|Admin|Managing Editor|Editor')->group(function () {
         Route::resource('publications', AdminPublicationController::class);
         Route::get('/publications/{publication}/download', [AdminPublicationController::class, 'download'])->name('publications.download');
+    });
+
+    // ── Advertisements & Announcements (Addendum M2) ─────────────────────
+    // Admin and Super Admin only, and every method additionally checks the
+    // specific advertising permission through the gate.
+    Route::prefix('admin/advertisements')->name('admin.advertisements.')->middleware('role:Super Admin|Admin')->group(function () {
+        Route::get('/',                     [AdCampaignController::class, 'index'])->name('index');
+        Route::get('/placements',           [AdCampaignController::class, 'placements'])->name('placements');
+        Route::post('/placements',          [AdCampaignController::class, 'updatePlacement'])->name('placements.update');
+        Route::get('/create',               [AdCampaignController::class, 'create'])->name('create');
+        Route::post('/',                    [AdCampaignController::class, 'store'])->name('store');
+        Route::get('/{advertisement}',      [AdCampaignController::class, 'show'])->name('show');
+        Route::get('/{advertisement}/edit', [AdCampaignController::class, 'edit'])->name('edit');
+        Route::post('/{advertisement}/edit',[AdCampaignController::class, 'update'])->name('update');
+        Route::post('/{advertisement}/status', [AdCampaignController::class, 'transition'])->name('transition');
     });
 
     // ── Editor ────────────────────────────────────────────────────────────────

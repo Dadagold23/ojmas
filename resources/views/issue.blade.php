@@ -114,6 +114,8 @@
     <div class="row g-4">
         {{-- Main Content --}}
         <div class="col-lg-8">
+            @include('ads.render', ['campaigns' => $issueAds ?? collect(), 'placementKey' => 'issue_promo', 'placementLabel' => 'Advertisement'])
+
             <div class="card content-card" data-aos="fade-up">
                 <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
                     <h4 class="fw-bold mb-0">Table of Contents</h4>

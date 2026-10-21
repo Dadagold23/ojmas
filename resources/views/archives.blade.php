@@ -121,6 +121,8 @@
         </a>
     </div>
 
+    @include('ads.render', ['campaigns' => $archiveAds ?? collect(), 'placementKey' => 'archive_banner', 'placementLabel' => 'Advertisement'])
+
     @if(isset($issues) && $issues->count())
         <div class="row g-4 mb-5">
             @foreach($issues as $issue)

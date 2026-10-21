@@ -31,6 +31,7 @@ final class PermissionCatalog
         'comment' => 'Comments and discussion',
         'payment' => 'Payments and fees',
         'publication' => 'Publication and production',
+        'advertising' => 'Advertisements and announcements',
         'administration' => 'Administration',
         'audit' => 'Audit and reporting',
     ];
@@ -105,6 +106,12 @@ final class PermissionCatalog
                 'publication.publish',
                 'publication.produce',
                 'publication.manage.issues',
+            ],
+            'advertising' => [
+                'advertising.view',
+                'advertising.manage',
+                'advertising.reports',
+                'advertising.configure',
             ],
             'administration' => [
                 'user.manage',
@@ -285,6 +292,9 @@ final class PermissionCatalog
                 'publication.manage.issues',
                 'user.manage',
                 'journal.manage',
+                'advertising.view',
+                'advertising.manage',
+                'advertising.reports',
                 'audit.view',
                 'audit.documents',
                 'audit.reports',

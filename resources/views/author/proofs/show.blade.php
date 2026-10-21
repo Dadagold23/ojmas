@@ -61,12 +61,59 @@
         </div>
 
         <div class="col-lg-5">
+            {{-- Precondition checks — shown honestly as True/False; the
+                 approval form stays locked while either is False. --}}
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold mb-3"><i class="bi bi-shield-check me-2 text-primary"></i>Before you can approve</h6>
+
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
+                        <span class="small">Peer review concluded</span>
+                        <span class="badge {{ $proofChecks['peer_review_concluded'] ? 'text-bg-success' : 'text-bg-secondary' }}">
+                            {{ $proofChecks['peer_review_concluded'] ? 'True' : 'False' }}
+                        </span>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="small">Copyediting completed</span>
+                        <span class="badge {{ $proofChecks['copyediting_completed'] ? 'text-bg-success' : 'text-bg-secondary' }}">
+                            {{ $proofChecks['copyediting_completed'] ? 'True' : 'False' }}
+                        </span>
+                    </div>
+
+                    @if($proofGateSatisfied)
+                        <div class="small text-success">
+                            <i class="bi bi-check2-circle me-1"></i>
+                            Both checks are satisfied — you may record your decision below.
+                        </div>
+                    @else
+                        <div class="small text-muted">
+                            <i class="bi bi-lock me-1"></i>
+                            The approval gate is not satisfied yet. Ask the editorial team once both checks show True;
+                            this form stays harmless (no approval can be recorded) until then.
+                        </div>
+                    @endif
+                </div>
+            </div>
+
             <div class="card border-primary border-3 shadow-sm mb-3">
                 <div class="card-body p-4">
                     <h6 class="fw-bold mb-3"><i class="bi bi-pen me-2 text-primary"></i>Your decision</h6>
 
+                    @if($errors->any() && $errors->has('proofs'))
+                        <div class="alert alert-warning rounded-3 small">{{ $errors->first('proofs') }}</div>
+                    @endif
+
                     <form method="POST" action="{{ route('author.proofs.approve', $submission) }}">
                         @csrf
+
+                        @unless($proofGateSatisfied)
+                            <fieldset disabled aria-disabled="true">
+                                <div class="alert alert-light border small mb-3">
+                                    <i class="bi bi-lock-fill me-1"></i>
+                                    Locked while the checks above show False.
+                                </div>
+                        @endunless
 
                         <div class="form-check mb-2">
                             <input class="form-check-input" type="radio" name="status" id="proof-approve"
@@ -91,6 +138,10 @@
                         </div>
 
                         <button class="btn btn-primary btn-sm w-100">Submit approval decision</button>
+
+                        @unless($proofGateSatisfied)
+                            </fieldset>
+                        @endunless
                     </form>
                 </div>
             </div>

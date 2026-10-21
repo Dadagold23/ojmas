@@ -82,6 +82,11 @@
             <a href="{{ route('admin.publications.index') }}" class="btn btn-success btn-sm fw-semibold">
                 <i class="bi bi-journal-check me-1"></i>Publications
             </a>
+            @can('advertising.view')
+                <a href="{{ route('admin.advertisements.index') }}" class="btn btn-outline-primary btn-sm fw-semibold">
+                    <i class="bi bi-megaphone me-1"></i>Ads &amp; Announcements
+                </a>
+            @endcan
             <a href="{{ route('admin.upload-diagnostics') }}" class="btn btn-outline-warning btn-sm fw-semibold">
                 <i class="bi bi-wrench-adjustable-circle me-1"></i>Upload Diagnostics
             </a>

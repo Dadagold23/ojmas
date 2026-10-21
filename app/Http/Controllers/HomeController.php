@@ -16,7 +16,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class HomeController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $published = Article::with(['author', 'issue.volume'])
             ->where('status', 'published')
@@ -33,6 +33,13 @@ class HomeController extends Controller
             ->where('status', 'published')
             ->latest('published_on')
             ->first();
+
+        // Addendum M2: the homepage's advertisement and announcement slots.
+        // Rendering these records an impression per visitor per campaign per
+        // day; nothing appears outside its recorded window.
+        $adService = app(\App\Services\Advertising\AdCampaignService::class);
+        $homepageAds = collect($adService->visibleForPlacement('homepage_banner', $request));
+        $announcementAds = collect($adService->visibleForPlacement('announcement_strip', $request));
 
         $journalHighlights = [
             'publisher' => 'OJMAS',
@@ -57,7 +64,7 @@ class HomeController extends Controller
             'A platform for researchers, practitioners, and policymakers solving complex global challenges',
         ];
 
-        return view('welcome', compact('published', 'latestIssues', 'featuredIssue', 'journalHighlights', 'homeScope'));
+        return view('welcome', compact('published', 'latestIssues', 'featuredIssue', 'journalHighlights', 'homeScope', 'homepageAds', 'announcementAds'));
     }
 
     public function archives(Request $request)
@@ -169,7 +176,11 @@ class HomeController extends Controller
         return view('archives', compact(
             'articles', 'issues', 'subjects', 'issueYearList', 'volumeList',
             'search', 'subject', 'year', 'volume',
-        ));
+        ) + [
+            // Addendum M2: the archive banner slot.
+            'archiveAds' => collect(app(\App\Services\Advertising\AdCampaignService::class)
+                ->visibleForPlacement('archive_banner', $request)),
+        ]);
     }
 
     public function issues(Request $request)
@@ -249,7 +260,7 @@ class HomeController extends Controller
         return view('issues', compact('issues', 'volumes', 'years', 'search', 'volume', 'year'));
     }
 
-    public function article(string $slug)
+    public function article(Request $request, string $slug)
     {
         $article = Article::with([
                 'author',
@@ -264,7 +275,11 @@ class HomeController extends Controller
         $byline = app(\App\Services\Publications\ArticleBylineService::class)->for($article);
         $citations = app(\App\Services\Publications\CitationService::class)->for($article);
 
-        return view('article', compact('article', 'byline', 'citations'));
+        return view('article', compact('article', 'byline', 'citations') + [
+            // Addendum M2: the article page banner slot.
+            'articleAds' => collect(app(\App\Services\Advertising\AdCampaignService::class)
+                ->visibleForPlacement('article_banner', $request)),
+        ]);
     }
 
     /**
@@ -484,7 +499,7 @@ class HomeController extends Controller
         );
     }
 
-    public function issue(int $id)
+    public function issue(Request $request, int $id)
     {
         $issue = Issue::with([
                 'volume',
@@ -508,7 +523,11 @@ class HomeController extends Controller
             $bylines[$tocArticle->id] = $bylineService->for($tocArticle);
         }
 
-        return view('issue', compact('issue', 'tableOfContents', 'bylines'));
+        return view('issue', compact('issue', 'tableOfContents', 'bylines') + [
+            // Addendum M2: the issue page promotional slot.
+            'issueAds' => collect(app(\App\Services\Advertising\AdCampaignService::class)
+                ->visibleForPlacement('issue_promo', $request)),
+        ]);
     }
 
     public function issuePdf(int $id)

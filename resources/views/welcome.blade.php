@@ -400,6 +400,8 @@
                                 <span class="scope-chip">{{ $item }}</span>
                                 @endforeach
                             </div>
+
+                            @include('ads.render', ['campaigns' => $announcementAds ?? collect(), 'placementKey' => 'announcement_strip', 'placementLabel' => 'Announcement'])
                         </div>
                         <div class="col-lg-5">
                             <div class="row g-3">
@@ -438,6 +440,8 @@
             </div>
         </div>
     </section>
+
+    @include('ads.render', ['campaigns' => $homepageAds ?? collect(), 'placementKey' => 'homepage_banner', 'placementLabel' => 'Advertisement'])
 
     @if(isset($featuredIssue) && $featuredIssue)
     <section class="py-5">

@@ -267,6 +267,57 @@ class EditorialWorkflowService
     }
 
     /**
+     * The two verification checks the author's proof-approval workspace asks
+     * for, computed from the submission's real stage position — never from
+     * form submissions.
+     *
+     *  1. `peer_review_concluded` — the manuscript has left every review
+     *     stage (assignment, peer review, further review) and has reached
+     *     the editorial-decision point or beyond.
+     *  2. `copyediting_completed` — the manuscript has reached proofing
+     *     (the copyediting → proof_approval transition has happened) or is
+     *     already published.
+     *
+     * Both must be True before an author may record a proof approval; the
+     * page shows them honestly as True/False and the recording endpoint
+     * refuses to write while either is False.
+     *
+     * @return array{peer_review_concluded: bool, copyediting_completed: bool, current_stage_order: ?int}
+     */
+    public function proofGateChecks(Submission $submission): array
+    {
+        $current = $this->currentStage($submission);
+
+        $currentOrder = $current?->sort_order;
+
+        $reviewStageSlugs = ['editorial_screening', 'reviewer_assignment', 'peer_review', 'further_review'];
+
+        // Review is concluded from the editorial-decision point onward, and
+        // only while the manuscript is not cycling back through a review
+        // stage (e.g. `further_review`, which sits above the decision in
+        // sort order but loops back into review).
+        $decisionOrder = $this->stage('editorial_decision')?->sort_order;
+
+        $peerReviewConcluded = $currentOrder !== null
+            && $decisionOrder !== null
+            && $currentOrder >= $decisionOrder
+            && ! in_array($current?->slug, $reviewStageSlugs, true);
+
+        $proofingOrder = $this->stage('proof_approval')?->sort_order
+            ?? $this->stage('published')?->sort_order;
+
+        $copyeditingCompleted = $proofingOrder !== null
+            && $currentOrder !== null
+            && $currentOrder >= $proofingOrder;
+
+        return [
+            'peer_review_concluded' => $peerReviewConcluded,
+            'copyediting_completed' => $copyeditingCompleted,
+            'current_stage_order' => $currentOrder,
+        ];
+    }
+
+    /**
      * Transitions available from the submission's current stage, filtered to
      * those the given actor is actually allowed to perform.
      *

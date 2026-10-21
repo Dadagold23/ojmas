@@ -230,6 +230,8 @@
 
     <div class="row g-4">
         <div class="col-lg-8">
+            @include('ads.render', ['campaigns' => $articleAds ?? collect(), 'placementKey' => 'article_banner', 'placementLabel' => 'Advertisement'])
+
             <div class="card content-card" data-aos="fade-up">
                 <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
                     <h4 class="fw-bold mb-3">Abstract</h4>
