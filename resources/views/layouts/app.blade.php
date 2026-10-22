@@ -10,6 +10,12 @@
 
     <meta name="description" content="@yield('meta_description', 'OJMAS Management System')">
     @yield('head_extras')
+    @if(config('push.vapid.public_key'))
+        {{-- Only the public key belongs in the frontend; the private key
+             stays on the server and is never rendered anywhere. --}}
+        <meta name="push-public-key" content="{{ config('push.vapid.public_key') }}">
+        <meta name="csrf-token" content="{{ csrf_token() }}">
+    @endif
     <link rel="icon" href="{{ asset('images/favicon.png') }}">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -343,6 +349,41 @@
     @unless(\View::hasSection('hide_chrome'))
     @include('layouts.footer')
     @endunless
+
+    @if(config('push.vapid.public_key'))
+        {{-- Optional consent-first subscribe control (Addendum M3). --}}
+        <div class="push-control border-top bg-light py-2" data-push-control
+             data-push-subscribe-url="{{ route('push.subscribe') }}"
+             data-push-unsubscribe-url="{{ route('push.unsubscribe') }}">
+            <div class="container d-flex flex-wrap align-items-center gap-2">
+                <i class="bi bi-bell text-primary"></i>
+                <span class="small fw-semibold">Subscribe to Journal Updates</span>
+                <span class="small text-muted d-none d-md-inline">voluntary browser notifications — purpose explained before any permission is asked</span>
+
+                <button type="button" class="btn btn-sm btn-outline-primary"
+                        data-push-subscribe>Subscribe</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary"
+                        data-push-unsubscribe hidden>Unsubscribe</button>
+
+                <span class="small text-muted" data-push-status></span>
+            </div>
+
+            <div class="container" data-push-prompt hidden>
+                <div class="small text-muted border rounded-3 p-2 mt-1 mb-2">
+                    <i class="bi bi-info-circle me-1"></i>
+                    These notifications carry journal announcements: new volumes, issues and articles
+                    by default. Promotional or sponsored notifications are only sent if you tick the box below.
+                    Nothing is subscribed before you press Subscribe.
+                </div>
+                <label class="small d-inline-flex align-items-center gap-2">
+                    <input type="checkbox" class="form-check-input mt-0" data-push-promotions>
+                    Also send me promotional / sponsored notifications
+                </label>
+            </div>
+        </div>
+
+        <script src="{{ asset('js/push-subscribe.js') }}"></script>
+    @endif
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>

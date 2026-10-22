@@ -672,6 +672,17 @@ class DocxRenderer
             $zip->addFromString($partName, $contents);
         }
 
+        // ZipArchive stamps string-added entries with the wall clock at
+        // 2-second DOS granularity, so two renders of the same manuscript
+        // could byte-differ for no reason other than landing on different
+        // sides of a tick under load. Pinning one fixed timestamp for every
+        // entry keeps the package genuinely reproducible: same input, same
+        // bytes. Word ignores these stored times; nothing observeable changes.
+        $pinnedAt = mktime(0, 0, 0, 1, 1, 2000);
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $zip->setMtimeIndex($i, $pinnedAt);
+        }
+
         $zip->close();
     }
 

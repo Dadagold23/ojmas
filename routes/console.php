@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Support\Facades\Schedule;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 
@@ -47,3 +48,13 @@ Artisan::command('users:sync-legacy-roles', function () {
     $this->newLine();
     $this->info("Legacy role sync complete. Updated: {$updated}, unchanged: {$unchanged}, skipped: {$skipped}.");
 })->purpose('Backfill users.role from assigned Spatie roles');
+
+/*
+ * Addendum Module 3 — push dispatch scheduler entry.
+ *
+ * Hosts running `php artisan schedule:run` from cron pick this up every
+ * minute; hosts that instead call `php artisan push:dispatch` directly get
+ * identical behaviour. Duplicate sends are impossible either way.
+ */
+Schedule::command('push:dispatch')->everyMinute()->withoutOverlapping()
+    ->onOneServer();

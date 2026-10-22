@@ -32,6 +32,7 @@ final class PermissionCatalog
         'payment' => 'Payments and fees',
         'publication' => 'Publication and production',
         'advertising' => 'Advertisements and announcements',
+        'push' => 'Web push notifications',
         'administration' => 'Administration',
         'audit' => 'Audit and reporting',
     ];
@@ -112,6 +113,11 @@ final class PermissionCatalog
                 'advertising.manage',
                 'advertising.reports',
                 'advertising.configure',
+            ],
+            'push' => [
+                'push.view',
+                'push.manage',
+                'push.configure',
             ],
             'administration' => [
                 'user.manage',
@@ -295,6 +301,8 @@ final class PermissionCatalog
                 'advertising.view',
                 'advertising.manage',
                 'advertising.reports',
+                'push.view',
+                'push.manage',
                 'audit.view',
                 'audit.documents',
                 'audit.reports',

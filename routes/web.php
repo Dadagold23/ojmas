@@ -26,6 +26,7 @@ use App\Http\Controllers\Reviewer\AssignmentController as ReviewerAssignmentCont
 
 use App\Http\Controllers\Admin\PublicationController as AdminPublicationController;
 use App\Http\Controllers\Admin\AdCampaignController;
+use App\Http\Controllers\Admin\PushNotificationController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\ManagingEditorController;
 use App\Http\Controllers\Admin\SystemConfigurationController;
@@ -61,6 +62,12 @@ Route::get('/article/{slug}/cite/{format}', [HomeController::class, 'cite'])->na
 Route::get('/sitemap.xml',             [HomeController::class, 'sitemap'])->name('sitemap');
 Route::get('/calls-for-papers',        [\App\Http\Controllers\AdPublicController::class, 'callsForPapers'])->name('ads.calls');
 Route::get('/ads/{campaign}/click',    [\App\Http\Controllers\AdPublicController::class, 'click'])->middleware('throttle:60,1')->name('ads.click');
+
+// ── Web Push subscription (Addendum M3) ──────────────────────────────────
+// The browser's own permission flow gates these: a subscription only ever
+// arrives after the visitor granted it explicitly.
+Route::post('/push/subscribe',   [\App\Http\Controllers\PushSubscriptionController::class, 'subscribe'])->middleware('throttle:30,1')->name('push.subscribe');
+Route::post('/push/unsubscribe', [\App\Http\Controllers\PushSubscriptionController::class, 'unsubscribe'])->middleware('throttle:30,1')->name('push.unsubscribe');
 
 // ─── Auth routes ──────────────────────────────────────────────────────────────
 require __DIR__.'/auth.php';
@@ -148,6 +155,20 @@ Route::middleware(array_filter([
         Route::get('/{advertisement}/edit', [AdCampaignController::class, 'edit'])->name('edit');
         Route::post('/{advertisement}/edit',[AdCampaignController::class, 'update'])->name('update');
         Route::post('/{advertisement}/status', [AdCampaignController::class, 'transition'])->name('transition');
+    });
+
+    // ── Web Push composer (Addendum M3) ──────────────────────────────────
+    Route::prefix('admin/push')->name('admin.push.')->middleware('role:Super Admin|Admin')->group(function () {
+        Route::get('/',                [PushNotificationController::class, 'index'])->name('index');
+        Route::get('/categories',      [PushNotificationController::class, 'categories'])->name('categories');
+        Route::post('/categories',     [PushNotificationController::class, 'updateCategories'])->name('categories.update');
+        Route::get('/create',          [PushNotificationController::class, 'create'])->name('create');
+        Route::post('/',               [PushNotificationController::class, 'store'])->name('store');
+        Route::get('/{notification}',  [PushNotificationController::class, 'show'])->name('show');
+        Route::get('/{notification}/preview', [PushNotificationController::class, 'preview'])->name('preview');
+        Route::post('/{notification}/send',   [PushNotificationController::class, 'send'])->name('send');
+        Route::post('/{notification}/cancel', [PushNotificationController::class, 'cancel'])->name('cancel');
+        Route::post('/{notification}/retry',  [PushNotificationController::class, 'retry'])->name('retry');
     });
 
     // ── Editor ────────────────────────────────────────────────────────────────
