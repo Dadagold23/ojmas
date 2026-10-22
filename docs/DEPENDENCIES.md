@@ -12,6 +12,7 @@ truth; ranges come from `composer.json` / `package.json`.
 | phpoffice/phpword | 1.3.0 | **LGPL-3.0-only** | DOCX parse/format (incl. under the hood: pclzip/pclzip LGPL-2.1; phpoffice/common LGPL; zend-* BSD-3-Clause) |
 | barryvdh/laravel-dompdf | 3.1.2 (dompdf/dompdf v2.x → **LGPL-2.1**) | MIT (wrapper) | Receipt/report PDFs in the pre-existing payment module |
 | laravel/tinker | ^2.10 | MIT | Dev/ops tooling |
+| minishlink/web-push | v11.0.0 | MIT | Web Push (VAPID) delivery — Addendum Module 3. Under the hood: web-token/jwt-library, php-http/httplug + PSR-7 stack, spomky-labs/base64url (all MIT/BSD-class; `composer lock` is the full truth) |
 
 ### LGPL note for the journal
 
@@ -60,6 +61,11 @@ php -m | sort
 composer check-platform-reqs
 ```
 
+Web Push (Addendum Module 3) additionally requires `ext-curl`, `ext-json`,
+`ext-mbstring` and `ext-openssl` for `minishlink/web-push` — all in the same
+standard Laravel set above (`gmp` is **not** required; the library signs
+VAPID JWTs with `openssl`).
+
 Both must succeed before `composer install --no-dev` on production. **This was
 confirmed locally only; production must be re-verified (S9-style gate).**
 
@@ -69,5 +75,12 @@ confirmed locally only; production must be re-verified (S9-style gate).**
   runtime configuration (`PAYSTACK_*`), no code changes in Modules 1–4.
 - **Mail** — `MAIL_MAILER` runtime configuration; queued notifications
   assume a reachable SMTP endpoint and a running queue worker.
-- No new external service, DNS, or credential requirement was introduced by
-  this project.
+- **Browser push endpoints (Addendum Module 3)** — delivery necessarily
+  contacts the vendor endpoints (FCM for Chrome/Firefox, Mozilla autopush,
+  Apple's push gateway for Safari) that the Web Push standard routes through.
+  Each receives the endpoint URL the browser generated and the encrypted
+  payload (which only the subscriber's browser can decrypt); no third party
+  can read the content and none is given user-identifying data beyond what
+  any Web Push implementation must expose. No credentials are held for them;
+  delivery authorisation is the server's own VAPID key (`PUSH_VAPID_*`).
+

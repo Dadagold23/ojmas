@@ -480,6 +480,115 @@ In addition to the pre-existing checks above, verify after deployment:
 - Tailwind v3/v4 config mismatch: tracked in `docs/MODULE_0_AUDIT.md`; none
   block launch.
 
+## Addendum Module 3 — Web Push Notifications
+
+### Dependency
+
+`minishlink/web-push` v11 (MIT, [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md))
+is an additive Composer dependency; `composer install --no-dev` covers it. It
+needs `ext-curl`, `ext-json`, `ext-mbstring` and `ext-openssl` (PHP ≥ 8.2) —
+all in the already-documented extension set; `gmp` is not required.
+
+### Migrations
+
+```
+2026_10_21_000003_create_push_notification_tables
+```
+
+Additive: creates `push_subscriptions`, `push_notifications`,
+`push_deliveries`, `push_category_settings` and seeds the ten notification
+categories (§3.2 of the brief). Nothing existing is altered. Rollback:
+`migrate:rollback --step=1 --force` — destroys only push records (subscription
+consent is lost; nothing else is touched).
+
+### Permissions — RE-RUN THE SEEDER (required, not optional)
+
+On any deployment where the Spatie permission tables already exist, the Gate
+resolves abilities through Spatie, so the new `push.view`, `push.manage` and
+`push.configure` permissions must be created and granted explicitly. The
+seeder is idempotent and additive:
+
+```bash
+php artisan db:seed --class=EditorialConfigurationSeeder --force
+```
+
+Created: the three permissions; Admin gains `push.view`/`push.manage`
+(delivery-observing roles: Admin and Super Admin run the composer;
+Super Admin alone configures category eligibility); Super Admin holds all
+three. Until the seeder runs, the route-level `role:Super Admin|Admin`
+middleware still enforces the same boundary, so nothing is left open or
+locked out either way.
+
+### VAPID keys — REQUIRED for delivery
+
+Generate a pair **on the production server** (keys are deployment-local by
+design; never copy keys between environments or store them in the repo):
+
+```bash
+php artisan push:keys          # prints the three .env lines
+php artisan push:keys --write  # or appends them to .env directly (skips if a public key is already configured)
+php artisan config:cache       # after any .env change
+```
+
+Without keys nothing breaks: the composer works (drafts, preview,
+category eligibility) but honestly reports that nothing can be delivered;
+`push-subscribe.js` degrades and points readers at the Calls for Papers page.
+The private key stays in `.env` on the host and is rendered nowhere; only the
+public key reaches the browser.
+
+### HTTPS and the service worker
+
+- Production subscriptions are accepted only over secure origins
+  (`PUSH_REQUIRE_HTTPS=true`, the default; local testing is exempt).
+- The service worker is served at `/service-worker.js` with root scope from
+  `public/` — the DocumentRoot=public/ setup deploys it with no extra step.
+- CSP compatibility (checked 2026-10-22): `default-src 'self'` permits the
+  same-origin worker registration and the same-origin `/push/*` fetches; no
+  policy change was needed.
+
+### Cron — REQUIRED for scheduled/due notifications
+
+`push:dispatch` stages and sends due notifications (draft→scheduled→sending→
+sent/failed; expired notifications stop automatically). Register it through
+the scheduler or as a direct cron entry — behaviour is identical, never
+install both:
+
+```bash
+# via the Laravel scheduler (also covers future scheduled tasks)
+* * * * * cd /path/to/ojmas-journal && php artisan schedule:run >> storage/logs/scheduler.log 2>&1
+# or directly
+* * * * * cd /path/to/ojmas-journal && php artisan push:dispatch >> storage/logs/push-dispatch.log 2>&1
+```
+
+Full sample (with a systemd-less queue-worker fallback):
+[deploy/cron/ojmas.crontab.example](deploy/cron/ojmas.crontab.example).
+Without cron, only manual "Send now" works; scheduled notifications simply
+wait — the safe direction of failure. Duplicate staging is database-guaranteed
+(one delivery row per notification+subscription, unique pair), so retries and
+restarts cannot double-send.
+
+### Queue
+
+`DispatchPushNotification` runs through the queue when a real driver is
+configured (see §3 Module 5 — the worker is already required for mail); with
+the `sync` driver it runs inline. Either way the *next cron minute* resumes
+any interrupted send. No new failure mode is introduced.
+
+### Verification after deployment
+
+1. Fresh browser → footer "Subscribe to Journal Updates" → one permission
+   prompt on explicit click → subscription recorded.
+2. Compose a notification as Admin → "Send now" → the delivery report shows
+   HTTP acceptance/failure counts verbatim, per endpoint.
+3. The notification arrives in the browser; clicking opens only the recorded
+   http(s) destination.
+4. "Unsubscribe" in the footer disables the record (never deletes).
+5. Negative check: with keys intentionally absent in a staging copy, confirm
+   the composer refuses to claim delivery.
+
+Delivery honesty: the report screens state that only HTTP acceptance is
+observable — there are no read/click counts in this system.
+
 ## Rollback Notes
 
 - Keep a database backup before migration (see §4 for the exact commands)

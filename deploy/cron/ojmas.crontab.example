@@ -1,0 +1,20 @@
+# OJMAS production crontab sample — Addendum Module 3 (Web Push)
+#
+# Replace /path/to/ojmas-journal and the www-data SHALL-file paths with the
+# real deployment paths, then install with `crontab -e -u www-data`
+# (or the host's panel equivalent).
+#
+# 1. Scheduler — picks up `push:dispatch` (every minute, withoutOverlapping,
+#    onOneServer) and any future scheduled task. This is the primary path.
+* * * * * cd /path/to/ojmas-journal && php artisan schedule:run >> storage/logs/scheduler.log 2>&1
+
+# 1b. Alternative for hosts that prefer a dedicated entry instead of the
+#     general scheduler. Behaviour is identical; DO NOT install both — the
+#     scheduler already prefixes the same command and duplicate staging of
+#     deliveries is database-protected, but running two dispatchers is noise.
+# * * * * * cd /path/to/ojmas-journal && php artisan push:dispatch >> storage/logs/push-dispatch.log 2>&1
+
+# 2. Queue worker fallback for hosts without a systemd supervisor (see
+#    DEPLOYMENT.md §3: a supervised `queue:work` service is preferred).
+#    This restart-hook keeps hourly workers ten minutes on the clock.
+# 0 * * * * cd /path/to/ojmas-journal && (php artisan queue:restart; nohup php artisan queue:work --tries=3 --timeout=120 --max-time=3600 >> storage/logs/worker.log 2>&1 &)

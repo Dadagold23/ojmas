@@ -138,12 +138,21 @@ Module 2's role boundaries):
 
 ## 8. Open items (flagged, not changed)
 
-1. **Production prerequisites still unverifiable from this machine** (Module 0
-   audit's open item): production HTTPS origin (service-worker scope), VAPID
-   keys added to the production `.env` (run `php artisan push:keys`), and the
-   host cron entry for `schedule:run` / `push:dispatch`. Without these the
-   admin surface still works (compose/preview/eligibility) but honestly
-   reports that nothing can be delivered.
+1. **Production prerequisites** (Module 0 audit's open item) — the
+   deployment material is now prepared and documented in
+   [DEPLOYMENT.md § "Addendum Module 3"](../DEPLOYMENT.md): the
+   `PUSH_VAPID_*` block added to `.env.production.example`, VAPID key
+   generation on the host (`php artisan push:keys`, required before any
+   delivery — the composer honestly refuses delivery without them), the
+   required seeder re-run for the new `push.*` permissions
+   (`EditorialConfigurationSeeder`, idempotent), the cron entry
+   (`deploy/cron/ojmas.crontab.example`; scheduler or direct, never both),
+   and a CSP compatibility check (same-origin worker already permitted by
+   `default-src 'self'`; no policy change). Still open until someone with
+   server access runs them: the HTTPS origin confirmation, the key pair on
+   the production `.env`, the cron installation, and the queue worker
+   (standing item S9). Local development now has its own VAPID pair
+   generated into `.env`, so the subscribe flow is testable on localhost.
 2. Deliverability depends on the browser service — endpoints may reject at
    send time; that is exactly what the delivery report records.
 3. `notify_push` on advertising campaigns (Module 2) is not yet auto-fed into
