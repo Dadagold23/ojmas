@@ -26,6 +26,11 @@
             $color = $colors[$submission->status] ?? 'secondary';
         @endphp
         <span class="badge bg-{{ $color }} status-badge">{{ ucwords(str_replace('_',' ',$submission->status)) }}</span>
+        @can('openWorkspace', $submission)
+        <a href="{{ route('workspace.show', $submission) }}" class="btn btn-outline-primary btn-sm flex-shrink-0">
+            <i class="bi bi-columns-gap me-1"></i>Open Workspace
+        </a>
+        @endcan
     </div>
 
     @if(session('success'))

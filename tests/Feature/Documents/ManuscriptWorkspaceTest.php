@@ -319,6 +319,26 @@ class ManuscriptWorkspaceTest extends TestCase
             ->assertOk();
     }
 
+    public function test_the_own_author_sees_the_workspace_entry_on_the_submission_page(): void
+    {
+        $submission = $this->submissionWithFormattedManuscript();
+
+        $this->actingAs($submission->author)
+            ->get(route('author.submissions.show', $submission))
+            ->assertOk()
+            ->assertSee(route('workspace.show', $submission))
+            ->assertSee('Open Workspace');
+    }
+
+    public function test_a_stranger_author_does_not_see_the_workspace_entry_on_someone_elses_submission(): void
+    {
+        $submission = $this->submissionWithFormattedManuscript();
+
+        $this->actingAs($this->author())
+            ->get(route('author.submissions.show', $submission))
+            ->assertForbidden();
+    }
+
     public function test_the_author_dashboard_still_works(): void
     {
         $this->submissionWithFormattedManuscript();
