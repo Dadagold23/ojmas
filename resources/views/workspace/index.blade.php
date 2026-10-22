@@ -152,6 +152,21 @@
                             <button id="btn-undo" class="btn btn-sm btn-outline-secondary" type="button"><i class="bi bi-arrow-counterclockwise"></i></button>
                             <button id="btn-redo" class="btn btn-sm btn-outline-secondary" type="button"><i class="bi bi-arrow-clockwise"></i></button>
                             <span class="vr mx-1"></span>
+                            {{-- Tables. Insert works anywhere; row/column controls
+                                 light up once the caret is inside a table cell. --}}
+                            <button id="btn-table-insert" class="btn btn-sm btn-outline-secondary" type="button" title="Insert a 3×3 table with a header row">
+                                <i class="bi bi-table me-1"></i>Table
+                            </button>
+                            <button id="btn-table-row-before" class="btn btn-sm btn-outline-secondary" type="button" title="Insert row above" disabled><i class="bi bi-arrow-bar-up"></i><small class="ms-1">Row</small></button>
+                            <button id="btn-table-row-after" class="btn btn-sm btn-outline-secondary" type="button" title="Insert row below" disabled><i class="bi bi-arrow-bar-down"></i><small class="ms-1">Row</small></button>
+                            <button id="btn-table-col-before" class="btn btn-sm btn-outline-secondary" type="button" title="Insert column left" disabled><i class="bi bi-arrow-bar-left"></i><small class="ms-1">Col</small></button>
+                            <button id="btn-table-col-after" class="btn btn-sm btn-outline-secondary" type="button" title="Insert column right" disabled><i class="bi bi-arrow-bar-right"></i><small class="ms-1">Col</small></button>
+                            <button id="btn-table-delete-row" class="btn btn-sm btn-outline-secondary" type="button" title="Delete row" disabled><i class="bi bi-trash3"></i><small class="ms-1">Row</small></button>
+                            <button id="btn-table-delete-col" class="btn btn-sm btn-outline-secondary" type="button" title="Delete column" disabled><i class="bi bi-trash3"></i><small class="ms-1">Col</small></button>
+                            <button id="btn-table-header" class="btn btn-sm btn-outline-secondary" type="button" title="Toggle header row" disabled><strong>Th</strong></button>
+                            <button id="btn-table-merge" class="btn btn-sm btn-outline-secondary" type="button" title="Merge or split cells" disabled><i class="bi bi-grid-1x2"></i></button>
+                            <button id="btn-table-delete" class="btn btn-sm btn-outline-danger" type="button" title="Delete table" disabled><i class="bi bi-table"></i>✕</button>
+                            <span class="vr mx-1"></span>
                             <button id="btn-comment" class="btn btn-sm btn-outline-primary" type="button" disabled>
                                 <i class="bi bi-chat-left-text me-1"></i>Comment on selection
                             </button>
@@ -339,6 +354,22 @@
     #editor-surface .tiptap h2,
     #editor-surface .tiptap h3 { margin: 1.4rem 0 .7rem 0; font-weight: 600; }
     #editor-surface .tiptap blockquote { border-left: 3px solid #cbd5e1; padding-left: 1rem; color: #64748b; }
+
+    /* Tables: real Word-style grids. Cell paragraphs deliberately drop the
+       36 pt first-line indent and inherit no double spacing — Word cells use
+       single spacing flush left, and the exporter writes exactly that. */
+    #editor-surface .tiptap table { border-collapse: collapse; margin: .9rem 0; }
+    #editor-surface .tiptap th,
+    #editor-surface .tiptap td { border: 1px solid #94a3b8; padding: .3rem .5rem; vertical-align: top; min-width: 2rem; }
+    #editor-surface .tiptap th { background: #f1f5f9; font-weight: 600; }
+    #editor-surface .tiptap th p,
+    #editor-surface .tiptap td p { text-indent: 0; margin: 0; }
+    #editor-surface .tiptap .selectedCell:after {
+        content: ''; position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+        background: rgba(13, 110, 253, .12); pointer-events: none;
+    }
+    #editor-surface .tiptap th,
+    #editor-surface .tiptap td { position: relative; }
 
     .oj-track-insert { text-decoration: underline; color: #15803d; text-decoration-thickness: 2px; }
     .oj-track-delete { text-decoration: line-through; color: #b91c1c; background: #fee2e2; }

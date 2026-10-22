@@ -193,6 +193,12 @@ class WorkspaceDocxExporter
         };
 
         foreach ((array) ($content['content'] ?? []) as $block) {
+            if (($block['type'] ?? null) === 'table') {
+                $flushTable();
+                $xml .= $this->renderTable($block);
+                continue;
+            }
+
             if (($block['attrs']['submissionBlockType'] ?? null) === 'table_row') {
                 $tableBuffer[] = $this->plainOf($block);
                 continue;
@@ -205,6 +211,127 @@ class WorkspaceDocxExporter
         $flushTable();
 
         return $xml;
+    }
+
+    /**
+     * Renders a real Tiptap `table` node as a Word `w:tbl` grid.
+     *
+     * Column spans become `w:gridSpan`. Row spans become a proper vertical
+     * merge: the origin cell writes `w:vMerge="restart"` and every covered
+     * column position in the following rows gets the `w:vMerge` continuation
+     * cell Word requires — nothing is faked and nothing is lost.
+     *
+     * The pipe-delimited `table_row` paragraphs written by older imports keep
+     * their own legacy path above; this only reads genuine table nodes.
+     */
+    private function renderTable(array $table): string
+    {
+        $rows = array_values(array_filter(
+            (array) ($table['content'] ?? []),
+            fn ($row) => is_array($row) && (($row['type'] ?? null) === 'tableRow'),
+        ));
+
+        if ($rows === []) {
+            return '';
+        }
+
+        $xml = '<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="0" w:type="auto"/></w:tblPr>';
+
+        /** @var array<int, int> $continuations column position → merge rows still owed */
+        $continuations = [];
+
+        foreach (array_values($rows) as $rowIndex => $row) {
+            $cells = array_values(array_filter(
+                (array) ($row['content'] ?? []),
+                fn ($cell) => is_array($cell) && in_array($cell['type'] ?? null, ['tableCell', 'tableHeader'], true),
+            ));
+
+            $xml .= '<w:tr>';
+
+            $isHeaderRow = $rowIndex === 0
+                && count(array_filter($cells, fn ($cell) => ($cell['type'] ?? null) === 'tableHeader')) > 0;
+
+            if ($isHeaderRow) {
+                $xml .= '<w:trPr><w:tblHeader/></w:trPr>';
+            }
+
+            $column = 0;
+            $index = 0;
+
+            while (true) {
+                if (($continuations[$column] ?? 0) > 0) {
+                    $xml .= '<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/><w:vMerge/></w:tcPr><w:p/></w:tc>';
+                    $continuations[$column]--;
+
+                    if ($continuations[$column] === 0) {
+                        unset($continuations[$column]);
+                    }
+
+                    $column++;
+                    continue;
+                }
+
+                if ($index >= count($cells)) {
+                    break;
+                }
+
+                $cell = $cells[$index];
+                $colspan = max(1, (int) ($cell['attrs']['colspan'] ?? 1));
+                $rowspan = max(1, (int) ($cell['attrs']['rowspan'] ?? 1));
+
+                if ($rowspan > 1) {
+                    for ($span = 0; $span < $colspan; $span++) {
+                        $continuations[$column + $span] = ($continuations[$column + $span] ?? 0) + $rowspan - 1;
+                    }
+                }
+
+                $xml .= '<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/>'
+                    .($rowspan > 1 ? '<w:vMerge w:val="restart"/>' : '')
+                    .($colspan > 1 ? '<w:gridSpan w:val="'.$colspan.'"/>' : '')
+                    .'</w:tcPr>'
+                    .$this->cellContent($cell)
+                    .'</w:tc>';
+
+                $column += $colspan;
+                $index++;
+            }
+
+            $xml .= '</w:tr>';
+        }
+
+        return $xml.'</w:tbl>';
+    }
+
+    /**
+     * Cell paragraphs keep the choice the editor made (alignment, bold/italic
+     * marks) but drop the APA body geometry — no 0.5 in first-line indents
+     * inside a grid — and use single line spacing, which is what Word's own
+     * table cells do.
+     */
+    private function cellContent(array $cell): string
+    {
+        $xml = '';
+
+        foreach ((array) ($cell['content'] ?? []) as $child) {
+            if (! is_array($child)) {
+                continue;
+            }
+
+            $attrs = (array) ($child['attrs'] ?? []);
+            $alignment = (string) ($child['type'] ?? '') === 'paragraph'
+                ? $this->alignmentProperty($attrs, 'left')
+                : '';
+
+            // Non-paragraph block content inside a cell (a list, a heading)
+            // still renders, as its own paragraph; only fidelity of style is
+            // simplified, never the text.
+            $xml .= '<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/>'
+                .$alignment.'</w:pPr>'
+                .$this->inline($child)
+                .'</w:p>';
+        }
+
+        return $xml !== '' ? $xml : '<w:p/>';
     }
 
     private function renderBlock(ManuscriptWorkspaceDocument $workspace, array $block): string

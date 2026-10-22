@@ -13,6 +13,7 @@ import TextAlign from '@tiptap/extension-text-align'
 import FontFamily from '@tiptap/extension-text-style/font-family'
 import FontSize from '@tiptap/extension-text-style/font-size'
 import { TextStyle } from '@tiptap/extension-text-style/text-style'
+import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
 
 import {
   TrackedInsertion,
@@ -98,6 +99,13 @@ const editor = new Editor({
     TextAlign.configure({
       types: ['paragraph', 'heading', 'blockquote'],
     }),
+    // Real editable tables. Structure lives in the document JSON and the
+    // DOCX exporter writes a genuine Word grid (gridSpan + vMerge), so a
+    // table survives export → open in Word and import → editor round-trips.
+    Table.configure({ resizable: false }),
+    TableRow,
+    TableCell,
+    TableHeader,
   ],
   content: { type: 'doc', content: [] },
   editable: false,
@@ -105,7 +113,10 @@ const editor = new Editor({
     updateWordCount()
     if (state.capabilities.canEdit) autosave.markDirty()
   },
-  onSelectionUpdate: () => updateCommentButton(),
+  onSelectionUpdate: () => {
+    updateCommentButton()
+    refreshTableButtons()
+  },
 })
 
 function updateWordCount () {
@@ -129,6 +140,37 @@ function updateCommentButton () {
       ? editor.state.doc.textBetween(from, to, ' ').slice(0, 80)
       : ''
   }
+}
+
+/* ────────────────────────── tables ────────────────────────── */
+
+const tableToolbarButtons = [
+  'btn-table-row-before',
+  'btn-table-row-after',
+  'btn-table-col-before',
+  'btn-table-col-after',
+  'btn-table-delete-row',
+  'btn-table-delete-col',
+  'btn-table-header',
+  'btn-table-merge',
+  'btn-table-delete',
+]
+
+/** Enables row/column/table commands only while the caret sits inside a table. */
+function refreshTableButtons () {
+  const inTable = state.capabilities.canEdit && editor.isActive('table')
+
+  tableToolbarButtons.forEach(id => {
+    const button = el(id)
+    if (button) button.disabled = !inTable
+  })
+}
+
+/** Runs a table command. Commands no-op harmlessly when unavailable, so disabled buttons are a UX aid, not the control. */
+function runTableCommand (command) {
+  if (!state.capabilities.canEdit) return
+
+  editor.chain().focus()[command]().run()
 }
 
 /* ────────────────────────── autosave ────────────────────────── */
@@ -555,6 +597,7 @@ async function boot () {
   }
 
   editor.setEditable(state.capabilities.canEdit)
+  refreshTableButtons()
 
   document.querySelectorAll('[data-workspace-editable]').forEach(node => {
     node.style.opacity = state.capabilities.canEdit ? '1' : '.75'
@@ -611,6 +654,30 @@ document.addEventListener('DOMContentLoaded', () => {
   el('btn-italic')?.addEventListener('click', () => editor.chain().focus().toggleItalic().run())
   el('btn-undo')?.addEventListener('click', () => editor.chain().focus().undo().run())
   el('btn-redo')?.addEventListener('click', () => editor.chain().focus().redo().run())
+
+  // ── Tables ──
+  el('btn-table-insert')?.addEventListener('click', () => {
+    if (!state.capabilities.canEdit) return
+
+    // APA-style starter: 3 columns, 3 rows, the first row reserved for
+    // headings. Rows and columns are freely added afterwards.
+    editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+    toast('Table inserted. Put the caret in a cell to add or delete rows and columns.', 'info')
+  })
+  el('btn-table-row-before')?.addEventListener('click', () => runTableCommand('addRowBefore'))
+  el('btn-table-row-after')?.addEventListener('click', () => runTableCommand('addRowAfter'))
+  el('btn-table-col-before')?.addEventListener('click', () => runTableCommand('addColumnBefore'))
+  el('btn-table-col-after')?.addEventListener('click', () => runTableCommand('addColumnAfter'))
+  el('btn-table-delete-row')?.addEventListener('click', () => runTableCommand('deleteRow'))
+  el('btn-table-delete-col')?.addEventListener('click', () => runTableCommand('deleteColumn'))
+  el('btn-table-header')?.addEventListener('click', () => runTableCommand('toggleHeaderRow'))
+  el('btn-table-merge')?.addEventListener('click', () => runTableCommand('mergeOrSplit'))
+  el('btn-table-delete')?.addEventListener('click', () => {
+    if (state.capabilities.canEdit && editor.isActive('table') &&
+        window.confirm('Delete the whole table? Undo can bring it back until the next navigation.')) {
+      editor.chain().focus().deleteTable().run()
+    }
+  })
 
   // ── Office-suite paragraph & typography controls ──
   el('btn-align-left')?.addEventListener('click', () => editor.chain().focus().setTextAlign('left').run())

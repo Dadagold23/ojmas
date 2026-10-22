@@ -23,6 +23,7 @@
         "@tiptap/core": "^3.32.0",
         "@tiptap/extension-character-count": "^3.32.0",
         "@tiptap/extension-placeholder": "^3.32.0",
+        "@tiptap/extension-table": "^3.32.0",
         "@tiptap/extension-text-align": "^3.32.0",
         "@tiptap/extension-text-style": "^3.32.0",
         "@tiptap/pm": "^3.32.0",

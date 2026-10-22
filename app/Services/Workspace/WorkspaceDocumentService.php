@@ -516,28 +516,14 @@ class WorkspaceDocumentService
     /** @return array<int, array<string, mixed>>|null */
     private function convertUnknownBlock(\App\Services\Documents\Ast\ManuscriptNode $node): ?array
     {
-        // A merged-cell table cannot be faithfully modelled by the browser
-        // editor, so each row becomes a pipe-delimited paragraph tagged as a
-        // table row. Nothing is dropped, and the DOCX exporter reassembles the
-        // grid from these rows.
+        // Whole tables become real Tiptap table nodes, so the browser editor
+        // can insert, edit and delete rows and columns. Column spans from
+        // merged cells are carried as the cell's colspan; a rowspan imported
+        // from Word is not modelled (each Word row is imported per row), so a
+        // rowspan>1 can only appear through editor merges, which DOCX export
+        // writes back as true vertical merges.
         if ($node->type === \App\Services\Documents\Ast\NodeType::TABLE) {
-            $paragraphs = [];
-
-            foreach ($node->children as $row) {
-                $cells = [];
-
-                foreach ($row->children as $cell) {
-                    $cells[] = trim((string) $cell->text);
-                }
-
-                $paragraphs[] = [
-                    'type' => 'paragraph',
-                    'attrs' => ['submissionBlockType' => 'table_row'],
-                    'content' => [['type' => 'text', 'text' => implode(' | ', $cells)]],
-                ];
-            }
-
-            return $paragraphs === [] ? null : $paragraphs;
+            return $this->convertTable($node);
         }
 
         if ($node->type === \App\Services\Documents\Ast\NodeType::EQUATION) {
@@ -561,6 +547,75 @@ class WorkspaceDocumentService
             'type' => 'paragraph',
             'attrs' => ['submissionBlockType' => $node->type, 'preserved' => true],
             'content' => [['type' => 'text', 'text' => $text]],
+        ]];
+    }
+
+    /**
+     * Converts a parsed table into Tiptap table / tableRow / tableCell nodes.
+     *
+     * The first row becomes header cells when Word recorded it as a header
+     * row. Every cell always carries at least an empty paragraph because the
+     * Tiptap schema requires block content inside every cell.
+     *
+     * @return array<int, array<string, mixed>>|null
+     */
+    private function convertTable(\App\Services\Documents\Ast\ManuscriptNode $node): ?array
+    {
+        $hasHeaderRow = (bool) $node->attribute('has_header_row', false);
+        $rows = [];
+        $rowIndex = 0;
+
+        foreach ($node->children as $row) {
+            $cells = [];
+
+            foreach ($row->children as $cell) {
+                $paragraphs = [];
+
+                foreach ($cell->children as $cellParagraph) {
+                    if (! in_array($cellParagraph->type, ['paragraph', 'heading', 'abstract', 'title'], true)) {
+                        continue;
+                    }
+
+                    $inline = $this->inlineContent($cellParagraph);
+
+                    $paragraphs[] = [
+                        'type' => 'paragraph',
+                        'content' => $inline === [] ? [] : $inline,
+                    ];
+                }
+
+                if ($paragraphs === []) {
+                    $paragraphs[] = ['type' => 'paragraph', 'content' => []];
+                }
+
+                $colspan = (int) ($cell->attribute('grid_span', 1) ?? 1);
+
+                $cells[] = [
+                    'type' => $hasHeaderRow && $rowIndex === 0 ? 'tableHeader' : 'tableCell',
+                    'attrs' => [
+                        'colspan' => max(1, min(64, $colspan)),
+                        'rowspan' => 1,
+                        'colwidth' => null,
+                    ],
+                    'content' => $paragraphs,
+                ];
+            }
+
+            if ($cells === []) {
+                continue;
+            }
+
+            $rows[] = ['type' => 'tableRow', 'content' => $cells];
+            $rowIndex++;
+        }
+
+        if ($rows === []) {
+            return null;
+        }
+
+        return [[
+            'type' => 'table',
+            'content' => $rows,
         ]];
     }
 
