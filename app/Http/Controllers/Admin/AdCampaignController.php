@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AdCampaign;
 use App\Models\AdPlacement;
 use App\Services\Advertising\AdCampaignService;
+use App\Services\Advertising\AdRevenueReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
@@ -22,7 +23,10 @@ use Illuminate\View\View;
  */
 class AdCampaignController extends Controller
 {
-    public function __construct(private AdCampaignService $campaigns) {}
+    public function __construct(
+        private AdCampaignService $campaigns,
+        private AdRevenueReportService $revenueReports,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -185,6 +189,33 @@ class AdCampaignController extends Controller
             ->with('success', 'Placement updated.');
     }
 
+    /**
+     * Revenue and performance reports (Addendum Module 4). Financial data is
+     * its own authorization boundary: `advertising.reports` is deliberately
+     * not part of the broader `advertising.manage` grant, and the gate below
+     * is checked on every request regardless of the interface.
+     */
+    public function reports(Request $request): View
+    {
+        Gate::authorize('advertising.reports');
+
+        $validated = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
+
+        $report = $this->revenueReports->build(
+            $validated['from'] ?? null,
+            $validated['to'] ?? null,
+        );
+
+        return view('auth.admin.advertisements.reports', [
+            'report' => $report,
+            'from' => $validated['from'] ?? null,
+            'to' => $validated['to'] ?? null,
+        ]);
+    }
+
     /* ─────────────── validation ─────────────── */
 
     private function validateCampaign(Request $request, ?AdCampaign $existing = null): array
@@ -207,6 +238,13 @@ class AdCampaignController extends Controller
             'internal_notes' => ['nullable', 'string', 'max:5000'],
             'submit_status' => ['nullable', 'in:draft,publish'],
             'media' => ['nullable', 'file', 'max:51200'],
+            // Revenue controls (Addendum Module 4) — all optional.
+            'agreed_price' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
+            'currency' => ['nullable', 'string', 'size:3'],
+            'agreement_reference' => ['nullable', 'string', 'max:120'],
+            'invoice_reference' => ['nullable', 'string', 'max:120'],
+            'payment_status' => ['nullable', 'in:'.implode(',', array_keys(AdCampaign::PAYMENT_STATUSES))],
+            'paid_at' => ['nullable', 'date'],
         ]);
 
         // External media and destinations must be plain web addresses; a
@@ -220,6 +258,68 @@ class AdCampaignController extends Controller
                     ]);
                 }
             }
+        }
+
+        // Revenue controls are their own authorization boundary, checked
+        // deliberately: advertising.manage edits campaigns;
+        // advertising.reports is the financial role and only holders of it
+        // may write money onto a record.
+        if ($request->hasAny(['agreed_price', 'currency', 'agreement_reference', 'invoice_reference', 'payment_status', 'paid_at'])) {
+            Gate::authorize('advertising.reports');
+        }
+
+        // Server-side consistency: money is recorded as a state machine, not
+        // as free text. The effective state is the request's values or, on an
+        // update where a revenue field was not posted, the field already on
+        // the record. An invoice without an invoice number, a payment
+        // without a date, or a payment state without a recorded price is a
+        // bookkeeping fiction and is refused — nothing is auto-derived.
+        $existing = $request->route('advertisement');
+        $effective = fn (string $key) => array_key_exists($key, $validated)
+            ? $validated[$key]
+            : ($existing?->{$key} ?? null);
+
+        $price = $effective('agreed_price');
+        $paymentStatus = $effective('payment_status');
+        $invoice = $effective('invoice_reference');
+        $paidAt = $effective('paid_at');
+
+        if ($paymentStatus !== null && ($price === null || $price === '')) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'payment_status' => 'Record the agreed price before recording an invoice or payment state.',
+            ]);
+        }
+
+        if ($paymentStatus === 'invoiced' && ($invoice === null || $invoice === '')) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'invoice_reference' => 'A record marked "Invoiced" needs its invoice reference.',
+            ]);
+        }
+
+        if ($paymentStatus === 'paid' && ($paidAt === null || $paidAt === '')) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'paid_at' => 'A record marked "Paid" needs its payment date.',
+            ]);
+        }
+
+        if ($paymentStatus !== 'paid' && $paidAt !== null && $paidAt !== '') {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'paid_at' => 'A payment date may only be recorded once the status is "Paid".',
+            ]);
+        }
+
+        if (($price !== null && $price !== '') && ($validated['currency'] ?? null) === null && !$existing?->currency) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'currency' => 'A recorded price needs its currency (three letters, e.g. NGN).',
+            ]);
+        }
+
+        if ($validated['currency'] ?? false) {
+            $validated['currency'] = strtoupper($validated['currency']);
+        }
+
+        if ($validated['currency'] ?? false) {
+            $validated['currency'] = strtoupper($validated['currency']);
         }
 
         // Media typing follows the campaign: an image/banner takes an image,
@@ -267,6 +367,22 @@ class AdCampaignController extends Controller
             'sponsor_fee_note' => $validated['sponsor_fee_note'] ?? null,
             'internal_notes' => $validated['internal_notes'] ?? null,
         ];
+
+        // Revenue keys enter the payload only when the acting user holds the
+        // financial gate. Anyone else — including a manage-only role editing
+        // the rest of the campaign — leaves recorded money untouched.
+        if ($request->hasAny(['agreed_price', 'currency', 'agreement_reference', 'invoice_reference', 'payment_status', 'paid_at'])) {
+            Gate::authorize('advertising.reports');
+
+            $payload = array_merge($payload, [
+                'agreed_price' => $validated['agreed_price'] ?? null,
+                'currency' => $validated['currency'] ?? null,
+                'agreement_reference' => $validated['agreement_reference'] ?? null,
+                'invoice_reference' => $validated['invoice_reference'] ?? null,
+                'payment_status' => $validated['payment_status'] ?? null,
+                'paid_at' => $validated['paid_at'] ?? null,
+            ]);
+        }
 
         if ($request->hasFile('media')) {
             $previous = $request->route('advertisement')?->media_path ?? null;

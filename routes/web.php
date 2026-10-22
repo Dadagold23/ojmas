@@ -149,6 +149,7 @@ Route::middleware(array_filter([
         Route::get('/',                     [AdCampaignController::class, 'index'])->name('index');
         Route::get('/placements',           [AdCampaignController::class, 'placements'])->name('placements');
         Route::post('/placements',          [AdCampaignController::class, 'updatePlacement'])->name('placements.update');
+        Route::get('/reports',              [AdCampaignController::class, 'reports'])->name('reports');
         Route::get('/create',               [AdCampaignController::class, 'create'])->name('create');
         Route::post('/',                    [AdCampaignController::class, 'store'])->name('store');
         Route::get('/{advertisement}',      [AdCampaignController::class, 'show'])->name('show');

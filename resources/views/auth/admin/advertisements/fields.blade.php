@@ -131,6 +131,69 @@
     <textarea name="internal_notes" rows="2" class="form-control">{{ old('internal_notes', $campaign->internal_notes ?? '') }}</textarea>
 </div>
 
+@can('advertising.reports')
+@php($currentPaymentStatus = old('payment_status', $campaign->payment_status ?? ''))
+{{-- Revenue controls (Addendum Module 4). Optional on every campaign:
+     announcement campaigns legitimately carry none. Recording money follows
+     a small state machine and the server refuses bookkeeping fictions. --}}
+<div class="card bg-light border-0 rounded-4 p-3 mb-3">
+    <h6 class="fw-bold mb-2"><i class="bi bi-cash-stack me-1"></i>Revenue record (financial role only)</h6>
+    <div class="row g-3 mb-1">
+        <div class="col-md-4">
+            <label class="form-label fw-semibold small">Agreed price</label>
+            <input type="number" step="0.01" min="0" name="agreed_price"
+                   class="form-control @error('agreed_price') is-invalid @enderror"
+                   value="{{ old('agreed_price', $campaign->agreed_price ?? '') }}"
+                   placeholder="Leave empty for internal announcements">
+            @error('agreed_price')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-semibold small">Currency</label>
+            <input type="text" size="3" maxlength="3" name="currency"
+                   class="form-control @error('currency') is-invalid @enderror" style="text-transform: uppercase"
+                   value="{{ old('currency', $campaign->currency ?? '') }}" placeholder="NGN">
+            @error('currency')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+        </div>
+        <div class="col-md-5">
+            <label class="form-label fw-semibold small">Quotation / agreement reference</label>
+            <input type="text" name="agreement_reference" class="form-control @error('agreement_reference') is-invalid @enderror"
+                   value="{{ old('agreement_reference', $campaign->agreement_reference ?? '') }}">
+            @error('agreement_reference')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+        </div>
+    </div>
+    <div class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label fw-semibold small">Payment status</label>
+            <select name="payment_status" class="form-select @error('payment_status') is-invalid @enderror">
+                <option value="">— not yet priced —</option>
+                @foreach(\App\Models\AdCampaign::PAYMENT_STATUSES as $statusKey => $statusLabel)
+                    <option value="{{ $statusKey }}" @selected($currentPaymentStatus === $statusKey)>{{ $statusLabel }}</option>
+                @endforeach
+            </select>
+            @error('payment_status')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+        </div>
+        <div class="col-md-5">
+            <label class="form-label fw-semibold small">Invoice reference</label>
+            <input type="text" name="invoice_reference" class="form-control @error('invoice_reference') is-invalid @enderror"
+                   value="{{ old('invoice_reference', $campaign->invoice_reference ?? '') }}">
+            @error('invoice_reference')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+        </div>
+        <div class="col-md-4">
+            <label class="form-label fw-semibold small">Payment date</label>
+            <input type="date" name="paid_at" class="form-control @error('paid_at') is-invalid @enderror"
+                   value="{{ old('paid_at', isset($campaign->paid_at) ? $campaign->paid_at->format('Y-m-d') : '') }}">
+            <div class="form-text">Only valid once the status is "Paid" — the server enforces this.</div>
+            @error('paid_at')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+        </div>
+    </div>
+    <div class="form-text mt-2">
+        Nothing is charged automatically and no payment record is invented:
+        these fields record what was actually agreed, invoiced and paid.
+        Reports never call an unpaid invoice collected revenue.
+    </div>
+</div>
+@endcan
+
 <div class="mb-3">
     <label class="notify-toggle d-flex align-items-center gap-2 mb-0 user-select-none">
         <input type="checkbox" name="notify_push" value="1"

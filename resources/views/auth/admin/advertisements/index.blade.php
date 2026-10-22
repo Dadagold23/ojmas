@@ -32,6 +32,11 @@
                     <a href="{{ route('admin.advertisements.create') }}" class="btn btn-warning fw-semibold">
                         <i class="bi bi-plus-lg me-1"></i>New campaign
                     </a>
+                    @can('advertising.reports')
+                        <a href="{{ route('admin.advertisements.reports') }}" class="btn btn-outline-light">
+                            <i class="bi bi-graph-up-arrow me-1"></i>Revenue &amp; performance reports
+                        </a>
+                    @endcan
                     @can('advertising.configure')
                         <a href="{{ route('admin.advertisements.placements') }}" class="btn btn-outline-light">
                             <i class="bi bi-sliders me-1"></i>Placement configuration

@@ -36,12 +36,24 @@ class AdCampaign extends Model
         'editors' => 'Editorial staff',
     ];
 
+    /**
+     * Recorded payment states (Addendum Module 4). The states deliberately
+     * name what happened to an agreement, not what is believed about money:
+     * an unpaid invoice is "invoiced", never collected revenue.
+     */
+    public const PAYMENT_STATUSES = [
+        'agreed' => 'Agreed — not yet invoiced',
+        'invoiced' => 'Invoiced — awaiting payment',
+        'paid' => 'Paid',
+    ];
+
     protected $fillable = [
         'placement_id', 'created_by', 'title', 'description', 'type',
         'advertiser_name', 'media_path', 'media_type', 'external_media_url',
         'destination_url', 'starts_at', 'ends_at', 'status', 'priority',
         'audience', 'notify_push', 'label', 'sponsor_fee_note',
-        'internal_notes', 'push_campaign_id',
+        'internal_notes', 'push_campaign_id', 'agreed_price', 'currency',
+        'agreement_reference', 'invoice_reference', 'payment_status', 'paid_at',
     ];
 
     protected function casts(): array
@@ -50,6 +62,8 @@ class AdCampaign extends Model
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
             'notify_push' => 'boolean',
+            'agreed_price' => 'decimal:2',
+            'paid_at' => 'date',
         ];
     }
 
@@ -99,5 +113,18 @@ class AdCampaign extends Model
         }
 
         return $this->windowIsOpen();
+    }
+
+    /**
+     * Statuses that count a campaign's recorded price as agreed revenue
+     * (Addendum Module 4). Drafts and archived records are excluded: a draft
+     * was never approved, and an archived record may never have been — the
+     * reports state this exclusion openly instead of guessing.
+     */
+    public const REVENUE_STATUSES = ['scheduled', 'published', 'paused', 'expired'];
+
+    public function hasRecordedPrice(): bool
+    {
+        return $this->agreed_price !== null;
     }
 }

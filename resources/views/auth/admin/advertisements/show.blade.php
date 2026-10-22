@@ -73,6 +73,31 @@
                         <dd class="col-sm-8 small">{{ $advertisement->notify_push ? 'Yes — available to the Module 3 composer' : 'No' }}</dd>
                         <dt class="col-sm-4 small text-muted">Pricing note</dt>
                         <dd class="col-sm-8 small">{{ $advertisement->sponsor_fee_note ?? '—' }}</dd>
+                        @can('advertising.reports')
+                            <dt class="col-sm-4 small text-muted">Revenue record</dt>
+                            <dd class="col-sm-8 small">
+                                @if($advertisement->hasRecordedPrice())
+                                    @if($advertisement->currency)
+                                        {{ \Illuminate\Support\Number::currency($advertisement->agreed_price, $advertisement->currency) }}
+                                    @else
+                                        {{ $advertisement->agreed_price }}
+                                    @endif
+                                    — {{ \App\Models\AdCampaign::PAYMENT_STATUSES[$advertisement->payment_status] ?? $advertisement->payment_status ?? 'agreed' }}
+                                    @if($advertisement->paid_at)
+                                        · paid {{ $advertisement->paid_at->format('d M Y') }}
+                                    @endif
+                                @else
+                                    — not priced
+                                @endif
+                            </dd>
+                            @if($advertisement->agreement_reference || $advertisement->invoice_reference)
+                                <dt class="col-sm-4 small text-muted">References</dt>
+                                <dd class="col-sm-8 small">
+                                    @if($advertisement->agreement_reference)agreement: {{ $advertisement->agreement_reference }}@endif
+                                    @if($advertisement->invoice_reference){{ $advertisement->agreement_reference ? ' · ' : '' }}invoice: {{ $advertisement->invoice_reference }}@endif
+                                </dd>
+                            @endif
+                        @endcan
                         <dt class="col-sm-4 small text-muted">Created by</dt>
                         <dd class="col-sm-8 small">{{ $advertisement->creator?->name ?? '—' }}</dd>
                         @if($advertisement->internal_notes)
