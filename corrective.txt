@@ -1,0 +1,313 @@
+# OJMAS JOURNAL — CRITICAL CORRECTIVE IMPLEMENTATION PROMPT
+## Preserve Paragraphs, Tables, Images, Figures, and Complete Manuscript Structure
+
+### PROJECT CONTEXT
+
+We are correcting the existing OJMAS Journal website and its already implemented browser-based manuscript editing workspace.
+
+The workspace is operational, but serious document-processing defects have been identified:
+
+1. Separate paragraphs in uploaded or submitted manuscripts are merged into one continuous text block.
+2. Tables contained in submitted manuscripts are flattened into ordinary text instead of being displayed as actual tables.
+3. Images embedded in submitted manuscripts are not displayed correctly or are lost during document conversion, editing, saving, or reopening.
+
+These defects affect the integrity and professional presentation of academic manuscripts.
+
+Your assignment is to investigate the existing implementation, identify the actual root causes, and correct the document-processing pipeline without unnecessarily rebuilding the application or damaging existing features and records.
+
+**The objective is to preserve the original document's meaningful structure throughout upload, conversion, editing, saving, reopening, and export. A manuscript must never be reduced to plain text when it contains paragraphs, tables, images, or other supported document elements.**
+
+---
+
+### MODULE 0 — READ-ONLY AUDIT AND ROOT-CAUSE ANALYSIS
+
+Before modifying code, inspect the existing application and document-processing workflow.
+
+Identify the technologies already in use, including:
+
+- Manuscript upload and validation.
+- DOCX, DOC, PDF, or other currently supported file processing.
+- Document-to-HTML or editor-document conversion.
+- HTML sanitization and normalization.
+- The browser-based rich-text editor and its schema/extensions.
+- Image extraction, storage, and retrieval.
+- Table parsing and rendering.
+- Autosave, manual save, draft recovery, and version history.
+- Manuscript reopening and editor initialization.
+- APA 7 formatting operations.
+- DOCX and PDF export or generation.
+- Existing database fields, relationships, file storage paths, and access permissions.
+
+Trace a real manuscript through every stage. Compare the original uploaded file, converted document content, editor document model, saved database content, and reopened manuscript.
+
+For every defect, identify the exact function, file, conversion stage, or editor configuration responsible.
+
+Do not assume that the database is the cause or replace the existing editor without evidence.
+
+**Audit deliverable:** Provide the findings, root causes, affected components, proposed minimal corrections, and regression tests. Wait for my approval before implementing production changes.
+
+---
+
+### MODULE 1 — PRESERVE PARAGRAPHS AND TEXT STRUCTURE
+
+Correct the paragraph-processing defect.
+
+Requirements:
+
+1. Preserve every separate paragraph as a separate paragraph node or equivalent structural element.
+2. Preserve blank-line spacing where meaningful and maintain appropriate paragraph separation.
+3. Preserve headings and their levels, including title, section headings, subsections, and other supported heading styles.
+4. Preserve numbered and bulleted lists, indentation, alignment, line breaks, block quotations, and text emphasis where supported.
+5. Preserve bold, italic, underline, superscript, subscript, hyperlinks, and other supported inline formatting.
+6. Distinguish a line break inside a paragraph from the beginning of a new paragraph.
+7. Prevent HTML sanitization, text extraction, regular-expression replacements, or editor initialization from merging separate paragraphs.
+8. Ensure saving and reopening do not collapse the document into a single block.
+9. Ensure APA 7 formatting changes do not destroy the original paragraph boundaries.
+
+Do not solve this defect by inserting arbitrary spaces or line breaks into flattened text. Restore and maintain the correct underlying document structure.
+
+---
+
+### MODULE 2 — PRESERVE REAL TABLES AND THEIR CONTENT
+
+Correct the table-processing defect.
+
+Requirements:
+
+1. Recognize actual tables in submitted DOCX manuscripts and preserve them as genuine structural tables.
+2. Render tables as HTML tables or equivalent native table structures supported by the existing editor.
+3. Preserve rows, columns, individual cell contents, header cells, table captions, notes, borders, alignment, and supported cell formatting.
+4. Preserve merged cells, nested content, and other complex table features where supported by the existing technology.
+5. Keep paragraphs and line breaks inside individual cells.
+6. Preserve the original order of cells and the relationship between headings and their corresponding data.
+7. Support tables that appear between paragraphs, after headings, or alongside other manuscript content.
+8. Support tables containing numbers, percentages, dates, statistical results, symbols, and special characters without silently altering their values.
+9. Preserve table structure during editing, autosaving, versioning, reopening, and export.
+10. Ensure table content remains editable within the existing editorial workspace.
+11. Handle wide tables and tables that span multiple pages as reliably as the current export technology permits.
+12. If a table feature cannot be preserved, report the limitation explicitly and provide a safe fallback that does not silently flatten the table.
+
+Do not convert table cells into a sequence of text strings separated by spaces, tabs, or punctuation.
+
+**Acceptance requirement:** A source table containing 3 columns and 4 rows must remain a genuine table with the same data in the corresponding cells after upload, display, edit, save, reopen, and supported export/reimport tests.
+
+---
+
+### MODULE 3 — PRESERVE AND DISPLAY EMBEDDED IMAGES AND FIGURES
+
+Correct the image-processing defect. This module is mandatory.
+
+Academic manuscripts may contain photographs, diagrams, screenshots, charts, graphs, illustrations, scanned figures, logos, and other embedded images. These must not disappear merely because the manuscript is converted into an editor-compatible format.
+
+#### A. Image extraction and conversion
+
+1. Inspect how the current document-processing library extracts images from uploaded files.
+2. Identify whether images are embedded in the original DOCX package, represented by relationships or references, or stored as external assets.
+3. Preserve image data and its relationship to the correct position in the manuscript.
+4. Convert supported embedded images into browser-displayable formats when necessary, without degrading image quality unnecessarily.
+5. Store extracted images using the application's existing storage conventions and secure file-handling mechanisms.
+6. Use stable, resolvable image references in the editor document model and saved manuscript content.
+7. Ensure that temporary extraction files are not the only copies of images needed after the upload process finishes.
+8. Prevent broken image paths after saving, reopening, changing sessions, or deploying to the production server.
+9. Preserve the original uploaded file as the authoritative source and recovery copy.
+10. Never assume that an image reference remains valid merely because it worked during the initial upload request.
+
+Do not expose private manuscript images through publicly guessable URLs. Apply the existing authorization rules so only appropriately authorized users can access restricted manuscript content.
+
+#### B. Image display in the editorial workspace
+
+1. Display each supported embedded image at its correct position in the manuscript.
+2. Maintain the image's association with surrounding paragraphs, tables, captions, and figure numbering.
+3. Preserve image aspect ratio; do not stretch images disproportionately.
+4. Provide responsive display so large images fit within the editor without breaking the workspace layout.
+5. Preserve image order when a manuscript contains multiple images.
+6. Support figures between paragraphs, figures following captions, and images appearing alongside relevant explanatory text.
+7. Preserve image captions, figure numbers, source notes, and alternative text when available.
+8. Allow authorized editors to view images clearly at a suitable resolution.
+9. If the current editor supports image editing, resizing, alignment, or captioning, integrate with those existing capabilities. Do not claim support for features the editor does not actually provide.
+10. Where an image cannot be displayed, show a clear placeholder and diagnostic information rather than silently deleting it or omitting it.
+
+#### C. Image editing and persistence
+
+1. Ensure images remain visible after an editor modifies the manuscript's text.
+2. Preserve images when autosave or manual save occurs.
+3. Preserve images after closing and reopening a manuscript.
+4. Preserve images across manuscript versions and revision history.
+5. Prevent duplicate image extraction or unnecessary duplicate storage on repeated saves.
+6. Ensure deleting an image requires an intentional, authorized editorial action.
+7. Ensure that updating text does not inadvertently remove image references from the saved document.
+8. Maintain a recoverable link between each image and its source manuscript.
+9. Do not allow untrusted image URLs, uploaded filenames, or document relationships to bypass validation or security controls.
+
+#### D. Images in exported documents
+
+Where supported by the current export pipeline:
+
+1. Include embedded images in exported DOCX documents.
+2. Include images in generated PDFs.
+3. Preserve image order, captions, figure numbering, and surrounding text.
+4. Avoid clipping, unexpected overlaps, severe scaling problems, or images appearing on unrelated pages.
+5. Test images positioned before, between, and after tables and paragraphs.
+6. Verify that exported documents do not contain missing-image placeholders when the original image is available.
+
+If the current export library cannot preserve a particular image feature, identify the limitation and recommend the smallest safe solution. Do not silently claim successful export when images have been omitted.
+
+---
+
+### MODULE 4 — PRESERVE MIXED MANUSCRIPT CONTENT
+
+The document pipeline must support a manuscript containing multiple types of content in the same document, including:
+
+- Title and author information.
+- Abstract and keywords.
+- Multiple paragraphs and section headings.
+- Numbered and bulleted lists.
+- Tables and table notes.
+- Embedded images, charts, and figures.
+- Figure captions and source notes.
+- Equations and special characters, where supported.
+- Footnotes and endnotes, where supported.
+- In-text citations and reference lists.
+- Page breaks and other supported layout elements.
+
+The system must preserve the relative order and meaningful relationships of these elements.
+
+For example, if a manuscript contains a paragraph, then a table, then a figure with a caption, followed by another paragraph, the editor must not turn all four elements into one text block or reorder them.
+
+Do not invent content, table values, captions, or missing images. Report unsupported elements explicitly.
+
+---
+
+### MODULE 5 — APA 7 FORMATTING WITHOUT CONTENT DESTRUCTION
+
+The existing automatic APA 7 formatting functionality must operate on a structurally preserved manuscript.
+
+Requirements:
+
+1. Apply supported APA 7 formatting rules without flattening paragraphs, tables, or images.
+2. Preserve table numbers, table titles, figure numbers, figure captions, and associated notes.
+3. Do not delete rows, columns, figures, captions, references, or manuscript sections during formatting.
+4. Do not modify numerical results or scientific meaning.
+5. Preserve author and co-author information, citations, references, and manuscript metadata.
+6. Distinguish between applying a formatting style and rewriting the underlying content.
+7. Where automated formatting is uncertain, flag the affected element for editorial review instead of silently changing it.
+8. Preserve the original uploaded file and provide a safe recovery route if formatting fails.
+
+Do not redesign the APA 7 process until the current implementation has been inspected and its impact on document structure established.
+
+---
+
+### MODULE 6 — SAVE, REOPEN, VERSION, AND EXPORT INTEGRITY
+
+Test the complete lifecycle, not just the first display after upload.
+
+For every supported document element, verify:
+
+1. Upload.
+2. Initial conversion.
+3. First display in the editor.
+4. Editing and rearranging supported content.
+5. Autosave.
+6. Manual save.
+7. Close and reopen.
+8. Version history and restoration, if implemented.
+9. Export to DOCX, if supported.
+10. Export to PDF, if supported.
+11. Reimport the exported DOCX into a test environment, where applicable.
+
+Verify that paragraphs remain separate, tables remain genuine tables, images remain visible, captions remain associated with their figures, and content order is preserved.
+
+Use transactions, validation, or recovery mechanisms appropriate to the existing architecture. Do not overwrite the original source manuscript before the corrected version has been validated.
+
+---
+
+### MODULE 7 — REGRESSION TESTS AND ACCEPTANCE CRITERIA
+
+Create or use representative test manuscripts.
+
+**Test A: Paragraphs**
+- At least 10 separate paragraphs.
+- Multiple headings and subheadings.
+- Lists, inline formatting, and intentional line breaks.
+- Verify that paragraph boundaries survive the complete lifecycle.
+
+**Test B: Simple table**
+- A table containing 3 columns and 4 rows.
+- Include text, numerical values, and column headings.
+- Verify that the table is rendered as a real table and each value remains in the correct cell.
+
+**Test C: Complex table**
+- Include merged cells, long cell text, table captions, notes, and a wide layout where supported.
+- Verify structure and content preservation.
+
+**Test D: Images**
+- At least 3 embedded images of different dimensions.
+- Include one image with a figure caption and one placed between paragraphs.
+- Verify correct display, ordering, image resolution, persistence, and supported export.
+
+**Test E: Mixed academic manuscript**
+- Include headings, paragraphs, citations, references, at least one table, at least two figures, and their captions.
+- Verify that every element remains in its proper location and order.
+
+**Test F: Failure recovery**
+- Test a corrupt document, an unsupported image format, a missing image reference, and a failed conversion.
+- Ensure the system reports the problem clearly and does not silently save an incomplete manuscript over the original.
+
+For each test, record the results of upload, display, editing, save, reopen, and export where applicable.
+
+The correction is accepted only when the original defects are reproducibly resolved and the regression tests pass. A visually improved page alone is not sufficient evidence.
+
+---
+
+### MODULE 8 — SECURITY, COMPATIBILITY, AND DEPLOYMENT
+
+1. Follow the existing Laravel architecture, authorization policies, storage conventions, and coding standards.
+2. Validate uploaded file types, file sizes, image content, and document-processing inputs.
+3. Protect manuscript confidentiality and prevent unauthorized access to uploaded documents and extracted images.
+4. Do not disable sanitization indiscriminately to make tables or images display.
+5. Use safe rendering and appropriate HTML sanitization while retaining approved structural elements.
+6. Avoid destructive database migrations or unnecessary schema changes.
+7. Do not replace the existing editor, document library, or storage architecture without presenting evidence and obtaining approval.
+8. Preserve existing user accounts, roles, permissions, manuscripts, revisions, payment integrations, and editorial workflows.
+9. Provide a rollback plan and a backup strategy before production deployment.
+10. Clearly identify any server extensions, PHP packages, JavaScript packages, storage changes, or hosting configuration required.
+
+---
+
+### REQUIRED WORKING METHOD
+
+Follow these stages strictly:
+
+**Stage 1 — Inspect:** Perform a read-only audit of the existing implementation and reproduce the paragraph, table, and image defects.
+
+**Stage 2 — Diagnose:** Identify the exact causes and map the affected pipeline from original file to editor, persistence, and export.
+
+**Stage 3 — Propose:** Present a minimal correction plan, affected files, dependencies, security considerations, regression tests, and rollback strategy.
+
+**STOP AND WAIT FOR MY APPROVAL. DO NOT IMPLEMENT CHANGES BEFORE APPROVAL.**
+
+**Stage 4 — Implement:** After approval, correct the identified causes without unrelated refactoring or destructive changes.
+
+**Stage 5 — Verify:** Run the regression tests and report actual results. Do not report a test as passed unless it was executed successfully.
+
+**Stage 6 — Prepare deployment:** Provide a clear deployment procedure suitable for the existing hosting environment, including backup, deployment, validation, and rollback instructions.
+
+If a further independent module is required, stop and request approval before proceeding.
+
+---
+
+### FINAL DELIVERABLES
+
+Provide:
+
+1. Root-cause analysis for paragraph, table, and image loss.
+2. Exact files and functions requiring correction.
+3. The proposed implementation and explanation of how it preserves document structure.
+4. Regression-test results for paragraphs, tables, images, and mixed manuscripts.
+5. Any unsupported document features and their safe handling.
+6. Confirmation of save/reopen and export integrity based on executed tests.
+7. Security and compatibility findings.
+8. Backup, deployment, and rollback instructions.
+9. A list of remaining limitations and recommended next steps.
+
+**FINAL DIRECTIVE:** Fix the actual document-processing pipeline. Do not merely change the editor's appearance, insert extra spaces, display image placeholders without the actual images, or convert tables into text with borders. Paragraphs must remain separate paragraphs, tables must remain actual tables, and embedded images must remain visible image elements throughout the supported manuscript lifecycle.
