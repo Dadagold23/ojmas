@@ -469,6 +469,10 @@ class WorkspaceDocxExporter
      */
     private function inline(array $node): string
     {
+        if (($node['type'] ?? null) === 'hardBreak') {
+            return '<w:br/>';
+        }
+
         if (($node['type'] ?? null) === 'text') {
             $text = (string) ($node['text'] ?? '');
             $marks = (array) ($node['marks'] ?? []);
@@ -510,6 +514,12 @@ class WorkspaceDocxExporter
                     break;
                 case 'strike':
                     $runProperties .= '<w:strike/>';
+                    break;
+                case 'superscript':
+                    $runProperties .= '<w:vertAlign w:val="superscript"/>';
+                    break;
+                case 'subscript':
+                    $runProperties .= '<w:vertAlign w:val="subscript"/>';
                     break;
                 case 'textStyle':
                     // Office-suite typography chosen in the workspace: font

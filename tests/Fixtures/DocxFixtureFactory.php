@@ -258,6 +258,69 @@ class DocxFixtureFactory
         ], $this->mediaRelationships());
     }
 
+    /**
+     * An inline-fidelity stress manuscript: one paragraph containing a soft
+     * line break, superscript and subscript runs, a strikethrough+underline
+     * run and a blank separator paragraph. Exercises the corrective brief's
+     * module 1 (inline detail must survive; a line break inside a paragraph
+     * is distinct from a new paragraph).
+     */
+    public function inlineFidelity(string $name = 'inline-fidelity.docx'): string
+    {
+        $body = '';
+
+        $body .= $this->paragraph('An Inline Fidelity Stress Manuscript', ['style' => 'Title', 'jc' => 'center']);
+        $body .= $this->paragraph('');
+
+        // One paragraph with a soft line break inside it (br lives INSIDE the
+        // run, as Word writes it): it must import as one paragraph with a
+        // hardBreak node, never as merged single-line text.
+        $body .= '<w:p>'
+            .$this->run('First visual line of a soft-wrapped paragraph.')
+            .$this->runWithLineBreak('Second visual line follows the break directly.')
+            .'</w:p>';
+
+        // Superscript: an exponent that must never flatten into the baseline.
+        $body .= '<w:p>'
+            .$this->run('The squared measure was x')
+            .$this->run('2', '<w:vertAlign w:val="superscript"/>')
+            .$this->run(' under the fitted model.')
+            .'</w:p>';
+
+        // Subscript: a chemical formula.
+        $body .= '<w:p>'
+            .$this->run('The solution of H')
+            .$this->run('2', '<w:vertAlign w:val="subscript"/>')
+            .$this->run('O was prepared.')
+            .'</w:p>';
+
+        // Strikethrough and underline on the same run.
+        $body .= '<w:p>'
+            .$this->run('The withdrawn phrase ')
+            .$this->run('not part of the scholarly record', '<w:strike/><w:u w:val="single"/>')
+            .$this->run(' is retained for provenance.')
+            .'</w:p>';
+
+        $body .= $this->heading('References', 1);
+        $body .= $this->paragraph('Bello, A. (2026). Stress testing inline fidelity. Journal of Testing, 1(1), 1-9.', ['hanging' => 720]);
+
+        return $this->write($name, $body, $this->a4Section(1440));
+    }
+
+    private function run(string $text, string $runProperties = ''): string
+    {
+        $prefix = $runProperties === '' ? '' : '<w:rPr>'.$runProperties.'</w:rPr>';
+
+        return '<w:r>'.$prefix.'<w:t xml:space="preserve">'.$this->escape($text).'</w:t></w:r>';
+    }
+
+    private function runWithLineBreak(string $text, string $runProperties = ''): string
+    {
+        $prefix = $runProperties === '' ? '' : '<w:rPr>'.$runProperties.'</w:rPr>';
+
+        return '<w:r>'.$prefix.'<w:br/><w:t xml:space="preserve">'.$this->escape($text).'</w:t></w:r>';
+    }
+
     /** A long reference list for cross-reference testing. */
     public function manyReferences(int $count = 60, string $name = 'many-references.docx'): string
     {

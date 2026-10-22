@@ -14,6 +14,8 @@ import FontFamily from '@tiptap/extension-text-style/font-family'
 import FontSize from '@tiptap/extension-text-style/font-size'
 import { TextStyle } from '@tiptap/extension-text-style/text-style'
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
+import Superscript from '@tiptap/extension-superscript'
+import Subscript from '@tiptap/extension-subscript'
 
 import {
   TrackedInsertion,
@@ -106,6 +108,10 @@ const editor = new Editor({
     TableRow,
     TableCell,
     TableHeader,
+    // Scholarly inline fidelity: chemical formulas, citation labels and
+    // statistical symbols survive the import as real marks.
+    Superscript,
+    Subscript,
   ],
   content: { type: 'doc', content: [] },
   editable: false,
@@ -652,6 +658,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   el('btn-bold')?.addEventListener('click', () => editor.chain().focus().toggleBold().run())
   el('btn-italic')?.addEventListener('click', () => editor.chain().focus().toggleItalic().run())
+  el('btn-underline')?.addEventListener('click', () => editor.chain().focus().toggleUnderline().run())
+  el('btn-strike')?.addEventListener('click', () => editor.chain().focus().toggleStrike().run())
+  el('btn-superscript')?.addEventListener('click', () => editor.chain().focus().toggleSuperscript().run())
+  el('btn-subscript')?.addEventListener('click', () => editor.chain().focus().toggleSubscript().run())
   el('btn-undo')?.addEventListener('click', () => editor.chain().focus().undo().run())
   el('btn-redo')?.addEventListener('click', () => editor.chain().focus().redo().run())
 

@@ -86,6 +86,10 @@
                         <div class="btn-toolbar gap-1 border rounded-3 p-2 mb-2 flex-wrap">
                             <button id="btn-bold" class="btn btn-sm btn-outline-secondary" type="button"><strong>B</strong></button>
                             <button id="btn-italic" class="btn btn-sm btn-outline-secondary" type="button"><em>I</em></button>
+                            <button id="btn-underline" class="btn btn-sm btn-outline-secondary" type="button" title="Underline"><span style="text-decoration:underline">U</span></button>
+                            <button id="btn-strike" class="btn btn-sm btn-outline-secondary" type="button" title="Strikethrough"><s>S</s></button>
+                            <button id="btn-superscript" class="btn btn-sm btn-outline-secondary" type="button" title="Superscript">X<sup>2</sup></button>
+                            <button id="btn-subscript" class="btn btn-sm btn-outline-secondary" type="button" title="Subscript">X<sub>2</sub></button>
                             <span class="vr mx-1"></span>
                             @foreach([1, 2, 3] as $level)
                                 <button id="btn-h{{ $level }}" class="btn btn-sm btn-outline-secondary" type="button">H{{ $level }}</button>

@@ -526,6 +526,25 @@ class WorkspaceDocumentService
             return $this->convertTable($node);
         }
 
+        // Cover-page front matter (title-page lines, affiliation statements)
+        // must stay one paragraph per line. Flattening it into a single
+        // preserved block merged the author's separate lines into one
+        // continuous text block — exactly the defect this module corrects.
+        // Each line keeps its own runs, so inline emphasis survives too.
+        if ($node->type === \App\Services\Documents\Ast\NodeType::COVER_PAGE) {
+            $lines = [];
+
+            foreach ($node->children as $line) {
+                $lines[] = [
+                    'type' => 'paragraph',
+                    'attrs' => ['submissionBlockType' => 'cover_page_line', 'preserved' => true],
+                    'content' => $this->inlineContent($line),
+                ];
+            }
+
+            return $lines === [] ? null : $lines;
+        }
+
         if ($node->type === \App\Services\Documents\Ast\NodeType::EQUATION) {
             return [[
                 'type' => 'paragraph',
@@ -619,7 +638,9 @@ class WorkspaceDocumentService
         ]];
     }
 
-    /** @return array<int, array<string, mixed>> */
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     private function inlineContent(\App\Services\Documents\Ast\ManuscriptNode $node): array
     {
         $content = [];
@@ -631,10 +652,11 @@ class WorkspaceDocumentService
 
             $text = (string) $child->text;
 
-            if ($text === '') {
-                continue;
-            }
-
+            // Marks the parser reported on the run are carried faithfully: bold,
+            // italic, underline, strikethrough, superscript and subscript. A
+            // Word soft line break inside the run becomes a real hardBreak
+            // node, NOT a raw \n the browser would silently collapse — a
+            // line break inside a paragraph is distinct from a new paragraph.
             $marks = [];
 
             if ($child->attribute('bold') === true) {
@@ -649,18 +671,63 @@ class WorkspaceDocumentService
                 $marks[] = ['type' => 'underline'];
             }
 
-            $content[] = $marks === []
-                ? ['type' => 'text', 'text' => $text]
-                : ['type' => 'text', 'text' => $text, 'marks' => $marks];
+            if ($child->attribute('is_strikethrough') === true) {
+                $marks[] = ['type' => 'strike'];
+            }
+
+            if ($child->attribute('superscript') === true) {
+                $marks[] = ['type' => 'superscript'];
+            }
+
+            if ($child->attribute('subscript') === true) {
+                $marks[] = ['type' => 'subscript'];
+            }
+
+            foreach ($this->runInlineNodes($text, $marks) as $segment) {
+                $content[] = $segment;
+            }
         }
 
         if ($content !== []) {
             return $content;
         }
 
-        $text = trim((string) $node->text);
+        // The paragraph holds no faithful runs: keep its flattened text, but
+        // soft line breaks still survive as hardBreak nodes rather than
+        // joining everything into one visible line.
+        foreach ($this->runInlineNodes(trim((string) $node->text), []) as $segment) {
+            $content[] = $segment;
+        }
 
-        return $text === '' ? [] : [['type' => 'text', 'text' => $text]];
+        return $content;
+    }
+
+    /**
+     * Splits a run's text into text/hardBreak inline nodes.
+     *
+     * @param  array<int, array<string, mixed>>  $marks
+     * @return array<int, array<string, mixed>>
+     */
+    private function runInlineNodes(string $text, array $marks): array
+    {
+        $nodes = [];
+        $segments = explode("\n", $text);
+
+        foreach ($segments as $index => $segment) {
+            if ($index > 0) {
+                $nodes[] = ['type' => 'hardBreak'];
+            }
+
+            if ($segment === '') {
+                continue;
+            }
+
+            $nodes[] = $marks === []
+                ? ['type' => 'text', 'text' => $segment]
+                : ['type' => 'text', 'text' => $segment, 'marks' => $marks];
+        }
+
+        return $nodes;
     }
 
     /** Extracts the plain-text projection of a Tiptap document. */
