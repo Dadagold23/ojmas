@@ -27,6 +27,7 @@ use App\Http\Controllers\Reviewer\AssignmentController as ReviewerAssignmentCont
 use App\Http\Controllers\Admin\PublicationController as AdminPublicationController;
 use App\Http\Controllers\Admin\AdCampaignController;
 use App\Http\Controllers\Admin\PushNotificationController;
+use App\Http\Controllers\Admin\IssueScheduleController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\ManagingEditorController;
 use App\Http\Controllers\Admin\SystemConfigurationController;
@@ -170,6 +171,21 @@ Route::middleware(array_filter([
         Route::post('/{notification}/send',   [PushNotificationController::class, 'send'])->name('send');
         Route::post('/{notification}/cancel', [PushNotificationController::class, 'cancel'])->name('cancel');
         Route::post('/{notification}/retry',  [PushNotificationController::class, 'retry'])->name('retry');
+    });
+
+    // ── Issue & publication scheduling (Addendum M5) ─────────────────────
+    // Admin and Super Admin only; scheduling.view reads the calendar and
+    // plans, scheduling.manage mutates them. The service audits everything.
+    Route::prefix('admin/schedules')->name('admin.schedules.')->middleware('role:Super Admin|Admin')->group(function () {
+        Route::get('/',             [IssueScheduleController::class, 'index'])->name('index');
+        Route::get('/create',       [IssueScheduleController::class, 'create'])->name('create');
+        Route::post('/',            [IssueScheduleController::class, 'store'])->name('store');
+        Route::get('/{schedule}',   [IssueScheduleController::class, 'show'])->name('show');
+        Route::get('/{schedule}/edit',   [IssueScheduleController::class, 'edit'])->name('edit');
+        Route::post('/{schedule}/edit',  [IssueScheduleController::class, 'update'])->name('update');
+        Route::post('/{schedule}/pause', [IssueScheduleController::class, 'pause'])->name('pause');
+        Route::post('/{schedule}/resume',[IssueScheduleController::class, 'resume'])->name('resume');
+        Route::post('/{schedule}/cancel',[IssueScheduleController::class, 'cancel'])->name('cancel');
     });
 
     // ── Editor ────────────────────────────────────────────────────────────────

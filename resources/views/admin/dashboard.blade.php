@@ -92,6 +92,11 @@
                     <i class="bi bi-broadcast-pin me-1"></i>Push Notifications
                 </a>
             @endcan
+            @can('scheduling.view')
+                <a href="{{ route('admin.schedules.index') }}" class="btn btn-outline-info btn-sm fw-semibold">
+                    <i class="bi bi-calendar2-week me-1"></i>Issue Schedules
+                </a>
+            @endcan
             <a href="{{ route('admin.upload-diagnostics') }}" class="btn btn-outline-warning btn-sm fw-semibold">
                 <i class="bi bi-wrench-adjustable-circle me-1"></i>Upload Diagnostics
             </a>

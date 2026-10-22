@@ -33,6 +33,7 @@ final class PermissionCatalog
         'publication' => 'Publication and production',
         'advertising' => 'Advertisements and announcements',
         'push' => 'Web push notifications',
+        'scheduling' => 'Issue and announcement scheduling',
         'administration' => 'Administration',
         'audit' => 'Audit and reporting',
     ];
@@ -118,6 +119,10 @@ final class PermissionCatalog
                 'push.view',
                 'push.manage',
                 'push.configure',
+            ],
+            'scheduling' => [
+                'scheduling.view',
+                'scheduling.manage',
             ],
             'administration' => [
                 'user.manage',
@@ -303,6 +308,8 @@ final class PermissionCatalog
                 'advertising.reports',
                 'push.view',
                 'push.manage',
+                'scheduling.view',
+                'scheduling.manage',
                 'audit.view',
                 'audit.documents',
                 'audit.reports',
