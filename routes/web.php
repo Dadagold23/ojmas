@@ -51,7 +51,7 @@ Route::get('/editorial-board',         [HomeController::class, 'editorialBoard']
 Route::get('/editorial-advisers',      [HomeController::class, 'editorialAdvisers'])->name('editorial.advisers');
 Route::get('/scope-and-policies',      [HomeController::class, 'scopePolicies'])->name('scope.policies');
 Route::get('/call-for-papers',         [HomeController::class, 'callForPapers'])->name('call.for.papers');
-Route::post('/contact',                [ContactController::class, 'store'])->name('contact.store');
+    Route::post('/contact',                [ContactController::class, 'store'])->middleware('throttle:10,1')->name('contact.store');
 Route::get('/issues',                  [HomeController::class, 'issues'])->name('issues.index');
 Route::get('/issue/{id}',              [HomeController::class, 'issue'])->name('issue.show');
 Route::get('/issue/{id}/pdf',          [HomeController::class, 'issuePdf'])->name('issue.pdf');

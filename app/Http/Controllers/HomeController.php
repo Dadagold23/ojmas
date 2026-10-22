@@ -532,11 +532,15 @@ class HomeController extends Controller
 
     public function issuePdf(int $id)
     {
+        // Same boundary as the public issue page: only published issues
+        // hand out files. A draft issue's compiled PDF (and its unpublished
+        // article contents) is editorial material, not public download.
         $issue = Issue::with([
                 'volume',
                 'articles.author',
                 'articles.publication',
             ])
+            ->where('status', 'published')
             ->findOrFail($id);
 
         // 1. An uploaded compiled journal always wins.

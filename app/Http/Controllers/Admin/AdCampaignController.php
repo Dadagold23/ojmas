@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AdCampaign;
 use App\Models\AdPlacement;
+use App\Models\AuditLog;
 use App\Services\Advertising\AdCampaignService;
 use App\Services\Advertising\AdRevenueReportService;
 use Illuminate\Http\Request;
@@ -91,6 +92,8 @@ class AdCampaignController extends Controller
 
         $campaign = AdCampaign::create($this->campaignPayload($request, $validated, auth()->id()));
 
+        $this->audit($request, $campaign, 'advertising.campaign.created');
+
         return redirect()
             ->route('admin.advertisements.show', $campaign->fresh())
             ->with('success', 'Campaign created.');
@@ -137,7 +140,16 @@ class AdCampaignController extends Controller
 
         $validated = $this->validateCampaign($request, $advertisement);
 
+        // Recorded before/after for the audit trail: whatever was edited,
+        // including revenue columns, is traceable per the brief.
+        $before = $advertisement->withoutRelations()->only(array_keys($validated));
+
         $advertisement->update($this->campaignPayload($request, $validated, $advertisement->created_by));
+
+        $this->audit($request, $advertisement->fresh(), 'advertising.campaign.updated', [
+            'before' => $before,
+            'after' => $advertisement->withoutRelations()->only(array_keys($validated)),
+        ]);
 
         return redirect()
             ->route('admin.advertisements.show', $advertisement->fresh())
@@ -152,7 +164,13 @@ class AdCampaignController extends Controller
             'status' => ['required', 'string'],
         ]);
 
+        $fromStatus = $advertisement->status;
         $this->campaigns->transition($advertisement, $validated['status'], auth()->id());
+
+        $this->audit($request, $advertisement->fresh(), 'advertising.campaign.status_changed', [
+            'from' => $fromStatus,
+            'to' => $advertisement->fresh()->status,
+        ]);
 
         return redirect()
             ->route('admin.advertisements.show', $advertisement->fresh())
@@ -179,9 +197,26 @@ class AdCampaignController extends Controller
         ]);
 
         $placement = AdPlacement::findOrFail($validated['placement_id']);
+        $before = $placement->only(['label', 'is_active']);
         $placement->update([
             'label' => $validated['label'],
             'is_active' => $validated['is_active'],
+        ]);
+
+        // A placement deactivation hides a public slot everywhere — it is a
+        // configuration change on the public site, so it belongs in the audit
+        // trail like campaign changes do.
+        AuditLog::create([
+            'user_id' => $request->user()?->getKey(),
+            'event' => 'advertising.placement.updated',
+            'auditable_type' => AdPlacement::class,
+            'auditable_id' => $placement->id,
+            'new_values' => [
+                'before' => $before,
+                'after' => $placement->only(['label', 'is_active']),
+            ],
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
         ]);
 
         return redirect()
@@ -418,5 +453,30 @@ class AdCampaignController extends Controller
         }
 
         return 'published';
+    }
+
+    /**
+     * Campaign audit trail (Module 6 consolidation): every create, edit and
+     * status change is recorded to the same `audit_logs` stream the push
+     * composer and the scheduler use, with the acting user, IP and agent.
+     */
+    private function audit(Request $request, AdCampaign $campaign, string $event, array $values = []): void
+    {
+        // Effective state, not the request's guess: a freshly created
+        // campaign may derive its status (or other columns) from database
+        // defaults, so the trail reads the record as stored.
+        $campaign->refresh();
+
+        AuditLog::create([
+            'user_id' => $request->user()?->getKey(),
+            'event' => $event,
+            'auditable_type' => AdCampaign::class,
+            'auditable_id' => $campaign->id,
+            'new_values' => $values === [] ? $campaign->only([
+                'title', 'type', 'placement_id', 'starts_at', 'ends_at', 'status', 'label',
+            ]) : $values,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
     }
 }

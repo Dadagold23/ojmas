@@ -589,6 +589,25 @@ any interrupted send. No new failure mode is introduced.
 Delivery honesty: the report screens state that only HTTP acceptance is
 observable — there are no read/click counts in this system.
 
+## Addendum Module 6 — Security Consolidation (no migration, no .env, no cron)
+
+Code-only hardening and documentation; deploy it together with the addendum code:
+
+- **Migrations**: none in this module (the `2026_10_21_*` series is unchanged; §
+  "Rollback Notes" below covers the whole addendum).
+- **Permissions**: unchanged; the seeder re-run rule still applies after migrating.
+- **Behaviour changes** to be aware of:
+  1. `route('issue.pdf')` now serves **published** issues only (404 for drafts) —
+     the same boundary the public issue page always had.
+  2. The public contact form is rate limited to 10 requests per minute per IP.
+  3. Push subscription endpoint/keys are stored encrypted at rest and are never
+     serialised in responses. If push ran on an earlier release that stored secrets
+     in the clear, run the one-time migration once, right after deploying:
+     `php artisan push:reencrypt-secrets --dry-run` (reports what would change),
+     then again without `--dry-run` to encrypt. Values stored by newer code are
+     always encrypted automatically. Verify after deployment with one real
+     subscribe + test send on the target origin.
+
 ## Rollback Notes
 
 - Keep a database backup before migration (see §4 for the exact commands)

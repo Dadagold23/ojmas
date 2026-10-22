@@ -6,16 +6,30 @@ use Illuminate\Database\Eloquent\Model;
 
 class PushSubscription extends Model
 {
-    /** Consent flags only; promotions are never default-on. */
+    /**
+     * Consent flags only; promotions are never default-on.
+     */
     protected $fillable = [
         'user_id', 'endpoint_hash', 'endpoint', 'p256dh', 'auth',
         'wants_editorial', 'wants_promotions', 'is_active', 'failure_count',
         'last_error', 'last_success_at', 'user_agent',
     ];
 
+    /**
+     * The endpoint URL and the encryption keys are secrets belonging to one
+     * browser and one journal: they are encrypted at rest (attribute
+     * encryption, app-key) and are never serialised into arrays or JSON.
+     */
+    protected $hidden = [
+        'endpoint', 'p256dh', 'auth',
+    ];
+
     protected function casts(): array
     {
         return [
+            'endpoint' => 'encrypted',
+            'p256dh' => 'encrypted',
+            'auth' => 'encrypted',
             'is_active' => 'boolean',
             'wants_editorial' => 'boolean',
             'wants_promotions' => 'boolean',
