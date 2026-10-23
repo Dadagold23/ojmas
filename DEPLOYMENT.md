@@ -589,6 +589,47 @@ any interrupted send. No new failure mode is introduced.
 Delivery honesty: the report screens state that only HTTP acceptance is
 observable — there are no read/click counts in this system.
 
+## Corrective Module 3 — Manuscript Media (images)
+
+**Migration**: `2026_10_23_000001_create_manuscript_media_table` — one new
+table, strictly additive, nothing altered or dropped elsewhere. Run after the
+§4 backup; reruns are harmless.
+
+**Before deploying**:
+
+1. Take the §4 database backup (mysqldump) + storage tarball.
+2. **GD must be enabled on the production PHP** (`extension=gd` in php.ini /
+   `php-gd` package). Extraction itself works without GD, but probed pixel
+   dimensions fall back to the DOCX-declared extents; enable GD for exact
+   sizing of extracted figures.
+3. Disk space: each manuscript's embedded media is COPIED once into the
+   private disk under `manuscripts/media/<submission>/<version>/`. The
+   ORIGINAL uploaded package is never modified and never re-written.
+
+**Rollback** (corrective-module-3 only):
+
+```bash
+php artisan migrate:rollback --step=1 --force   # drops ONLY manuscript_media
+```
+
+Extracted media files remain on disk under `manuscripts/media/` until an
+operator deletes them deliberately; rolling the table back makes editor image
+display and figure export unavailable for workspaces whose content was
+imported after this module (older content never contained image nodes). No
+existing records are touched in either direction.
+
+**Where media rows come from**: extraction runs at workspace import and
+lazily on the first open of pre-existing workspaces; it is idempotent — one
+row per (version, media part name) — so repeated saves or re-opens never
+duplicate extraction.
+
+**Image serving**: `/workspace/submissions/{id}/media/{media}` (route
+`workspace.media.show`) is authenticated and authorised through the SAME
+`openWorkspace` policy check as the workspace itself (own-submission author,
+assigned reviewers, editors/managing editors/admins), returns 404 on
+cross-submission id guessing, and serves `Content-Disposition: inline` —
+never from a publicly guessable path.
+
 ## Addendum Module 6 — Security Consolidation (no migration, no .env, no cron)
 
 Code-only hardening and documentation; deploy it together with the addendum code:

@@ -3,6 +3,7 @@
 namespace App\Services\Workspace;
 
 use App\Models\ManuscriptComment;
+use App\Models\ManuscriptMedia;
 use App\Models\ManuscriptWorkspaceDocument;
 use App\Services\Documents\Formatting\StyleProfile;
 use App\Services\Documents\Formatting\StyleProfileRepository;
@@ -26,6 +27,17 @@ class WorkspaceDocxExporter
     }
 
     /**
+     * Media registry of the export in flight: editor media id → package
+     * reference (relationship id + the part the bytes are written to). Set by
+     * export(), never relied on across calls.
+     *
+     * @var array<int, array{rid: string, part: string, media: ManuscriptMedia}>
+     */
+    private array $imageRefs = [];
+
+    private int $drawingId = 0;
+
+    /**
      * Renders the workspace document to $destinationPath.
      *
      * @return array{path: string, summary: array<string, mixed>}
@@ -37,7 +49,16 @@ class WorkspaceDocxExporter
     ): array {
         $profile ??= $this->profiles->resolve();
 
-        $body = $this->buildBody($workspace, $workspace->content());
+        $content = $workspace->content();
+
+        // Every figure the editor holds gets genuine WordprocessingML
+        // relationships and real media parts in the package: an image is
+        // exported as a real `<w:drawing>` Word can render, never as a
+        // placeholder or flattened text.
+        $this->imageRefs = $this->collectImageRefs($content);
+        $this->drawingId = 0;
+
+        $body = $this->buildBody($workspace, $content);
         $body .= $this->renderCommentAppendix($workspace);
         $body .= $this->renderSectionProperties($profile);
 
@@ -66,6 +87,16 @@ class WorkspaceDocxExporter
         $zip->addFromString('word/styles.xml', $this->stylesXml($profile));
         $zip->addFromString('docProps/core.xml', $this->corePropertiesXml($profile));
         $zip->addFromString('docProps/app.xml', $this->appPropertiesXml());
+
+        // The extracted media copies become real package parts. Missing
+        // copies were already refused in collectImageRefs, so every
+        // referenced part exists here.
+        $disk = \Illuminate\Support\Facades\Storage::disk(config('manuscripts.disk', 'private'));
+
+        foreach ($this->imageRefs as $ref) {
+            $zip->addFromString($ref['part'], $disk->get($ref['media']->storage_path));
+        }
+
         $zip->close();
 
         return [
@@ -73,6 +104,7 @@ class WorkspaceDocxExporter
             'summary' => [
                 'blocks' => (int) $workspace->block_count,
                 'words' => (int) $workspace->word_count,
+                'images' => count($this->imageRefs),
                 'pending_changes' => $workspace->pendingChanges()->count(),
                 'comments' => $workspace->comments()->count(),
             ],
@@ -85,6 +117,17 @@ class WorkspaceDocxExporter
             .'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
             .'<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
             .'<Default Extension="xml" ContentType="application/xml"/>'
+            // Image defaults so embedded figures are legal package parts.
+            .'<Default Extension="png" ContentType="image/png"/>'
+            .'<Default Extension="jpeg" ContentType="image/jpeg"/>'
+            .'<Default Extension="jpg" ContentType="image/jpeg"/>'
+            .'<Default Extension="gif" ContentType="image/gif"/>'
+            .'<Default Extension="webp" ContentType="image/webp"/>'
+            .'<Default Extension="bmp" ContentType="image/bmp"/>'
+            .'<Default Extension="tiff" ContentType="image/tiff"/>'
+            .'<Default Extension="tif" ContentType="image/tiff"/>'
+            .'<Default Extension="emf" ContentType="image/x-emf"/>'
+            .'<Default Extension="wmf" ContentType="image/x-wmf"/>'
             .'<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
             .'<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>'
             .'<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'
@@ -104,10 +147,92 @@ class WorkspaceDocxExporter
 
     private function documentRelationshipsXml(): string
     {
-        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        $xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             .'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-            .'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
-            .'</Relationships>';
+            .'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>';
+
+        // One relationship per embedded figure; Word resolves the `<a:blip
+        // r:embed>` in the drawing against exactly these ids.
+        foreach ($this->imageRefs as $ref) {
+            $xml .= '<Relationship Id="'.$ref['rid']
+                .'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image'
+                .'" Target="'.str_replace('word/', '', $ref['part']).'"/>';
+        }
+
+        return $xml.'</Relationships>';
+    }
+
+    /**
+     * Registers every figure the content references as an exportable media
+     * part: sequential relationship ids and `word/media/imageNN.ext` part
+     * names. A row whose extracted copy is missing (storage tampered with)
+     * is refused here, BEFORE any XML is written, so no dangling relationship
+     * can ever end up in the package.
+     *
+     * @param  array<string, mixed>  $content
+     * @return array<int, array{rid: string, part: string, media: ManuscriptMedia}>
+     */
+    private function collectImageRefs(array $content): array
+    {
+        $ids = [];
+
+        foreach ($this->walkForImages($content) as $id) {
+            $ids[(int) $id] = true;
+        }
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $rows = ManuscriptMedia::whereIn('id', array_keys($ids))->get()->keyBy('id');
+        $disk = \Illuminate\Support\Facades\Storage::disk(config('manuscripts.disk', 'private'));
+
+        $refs = [];
+        $index = 0;
+
+        foreach ($rows as $row) {
+            if (! $disk->exists($row->storage_path)) {
+                continue;
+            }
+
+            $index++;
+            $extension = strtolower(pathinfo((string) $row->part_name, PATHINFO_EXTENSION));
+            $extension = $extension !== '' ? $extension : 'bin';
+
+            $refs[(int) $row->id] = [
+                'rid' => 'rIdImg'.$index,
+                'part' => sprintf('word/media/image%02d.%s', $index, $extension),
+                'media' => $row,
+            ];
+        }
+
+        return $refs;
+    }
+
+    /**
+     * Every media id referenced by a `submissionImage` node anywhere in the
+     * document (body and inside table cells).
+     *
+     * @param  array<string, mixed>  $node
+     * @return array<int, int>
+     */
+    private function walkForImages(array $node): array
+    {
+        $ids = [];
+
+        if (($node['type'] ?? null) === 'submissionImage' && is_numeric($node['attrs']['mediaId'] ?? null)) {
+            $ids[] = (int) $node['attrs']['mediaId'];
+        }
+
+        foreach ((array) ($node['content'] ?? []) as $child) {
+            if (is_array($child)) {
+                foreach ($this->walkForImages($child) as $id) {
+                    $ids[] = $id;
+                }
+            }
+        }
+
+        return $ids;
     }
 
     private function stylesXml(StyleProfile $profile): string
@@ -193,6 +318,12 @@ class WorkspaceDocxExporter
         };
 
         foreach ((array) ($content['content'] ?? []) as $block) {
+            if (($block['type'] ?? null) === 'submissionImage') {
+                $flushTable();
+                $xml .= $this->renderImageParagraph($block);
+                continue;
+            }
+
             if (($block['type'] ?? null) === 'table') {
                 $flushTable();
                 $xml .= $this->renderTable($block);
@@ -211,6 +342,100 @@ class WorkspaceDocxExporter
         $flushTable();
 
         return $xml;
+    }
+
+    /**
+     * A figure block becomes a centred paragraph holding a REAL Wordprocessing
+     * drawing (`<w:drawing>` → `wp:inline` → `a:blip r:embed`), bound to the
+     * media part exported beside the document. No placeholder, no flattened
+     * text — this is the same structure Word itself writes for an inline
+     * picture.
+     */
+    private function renderImageParagraph(array $block): string
+    {
+        return '<w:p><w:pPr><w:spacing w:before="120" w:after="120"/><w:ind w:left="0" w:firstLine="0"/>'
+            .'<w:jc w:val="center"/></w:pPr>'.$this->imageRun($block).'</w:p>';
+    }
+
+    /**
+     * The drawing run for a `submissionImage` node.
+     *
+     * When no extracted media could be registered for the node (its row is
+     * gone, or its copy is missing from storage), the figure is exported as a
+     * clearly-labelled italic placeholder — the honest alternative, because
+     * inventing an empty drawing frame Word cannot render would be worse.
+     */
+    private function imageRun(array $block): string
+    {
+        $attrs = (array) ($block['attrs'] ?? []);
+        $ref = is_numeric($attrs['mediaId'] ?? null)
+            ? ($this->imageRefs[(int) $attrs['mediaId']] ?? null)
+            : null;
+
+        if ($ref === null) {
+            $caption = $attrs['alt'] ?? $attrs['mediaPart'] ?? 'figure';
+
+            return '<w:r><w:rPr><w:i/></w:rPr><w:t xml:space="preserve">'
+                .$this->escape('[figure unavailable: '.$caption.']')
+                .'</w:t></w:r>';
+        }
+
+        $extent = $this->imageExtent($attrs, $ref['media']);
+        $cx = (int) $extent['cx'];
+        $cy = (int) $extent['cy'];
+        $this->drawingId++;
+        $drawingId = $this->drawingId;
+        $name = (string) ($ref['media']->part_name ?: 'media/image'.str_pad((string) $drawingId, 2, '0', STR_PAD_LEFT).'.png');
+        $alt = trim((string) ($attrs['alt'] ?? $ref['media']->description ?? ''));
+
+        $W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+        $R_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+
+        return '<w:r><w:drawing>'
+            .'<wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"'
+            .' distT="0" distB="0" distL="0" distR="0">'
+            .'<wp:extent cx="'.$cx.'" cy="'.$cy.'"/>'
+            .'<wp:effectExtent l="0" t="0" r="0" b="0"/>'
+            .'<wp:docPr id="'.$drawingId.'" name="Figure '.$drawingId.'"'
+            .($alt !== '' ? ' descr="'.$this->escape($alt).'"' : '').'/>'
+            .'<wp:cNvGraphicFramePr><a:graphicFrameLocks'
+            .' xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"'
+            .' noChangeAspect="1"/></wp:cNvGraphicFramePr>'
+            .'<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+            .'<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+            .'<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+            .'<pic:nvPicPr><pic:cNvPr id="'.$drawingId.'" name="'.$this->escape($name).'"/><pic:cNvPicPr/></pic:nvPicPr>'
+            .'<pic:blipFill><a:blip xmlns:r="'.$R_NS.'" r:embed="'.$ref['rid'].'"/>'
+            .'<a:stretch><a:fillRect/></a:stretch></pic:blipFill>'
+            .'<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'.$cx.'" cy="'.$cy.'"/></a:xfrm>'
+            .'<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>'
+            .'</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>';
+    }
+
+    /**
+     * Display extent in EMUs (1 px = 9525 EMU): the size the editor shows
+     * falls back to the probed pixel size of the extracted copy, and finally
+     * to a 100×100 px square rather than a zero-size frame.
+     *
+     * @return array{cx: int, cy: int}
+     */
+    private function imageExtent(array $attrs, ManuscriptMedia $media): array
+    {
+        $emu = 9525;
+        $width = is_numeric($attrs['width'] ?? null) && (int) $attrs['width'] > 0
+            ? (int) $attrs['width'] : $media->width_px;
+        $height = is_numeric($attrs['height'] ?? null) && (int) $attrs['height'] > 0
+            ? (int) $attrs['height'] : $media->height_px;
+
+        if (is_string($media->mime_type) && in_array($media->mime_type, ['image/x-emf', 'image/x-wmf', 'image/tiff'], true)) {
+            $width ??= 200;
+            $height ??= 200;
+        }
+
+        return [
+            'cx' => max(1, (int) round(((int) ($width ?? 100)) * $emu)),
+            'cy' => max(1, (int) round(((int) ($height ?? 100)) * $emu)),
+        ];
     }
 
     /**
@@ -314,6 +539,16 @@ class WorkspaceDocxExporter
 
         foreach ((array) ($cell['content'] ?? []) as $child) {
             if (! is_array($child)) {
+                continue;
+            }
+
+            // A figure inside the cell stays inside the cell: it becomes its
+            // own centred paragraph there, exactly as Word would lay it out.
+            if (($child['type'] ?? null) === 'submissionImage') {
+                $xml .= '<w:p><w:pPr><w:spacing w:before="0" w:after="0"/><w:jc w:val="center"/></w:pPr>'
+                    .$this->imageRun($child)
+                    .'</w:p>';
+
                 continue;
             }
 

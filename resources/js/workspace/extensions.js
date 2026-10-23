@@ -11,7 +11,7 @@
  * render that state and let the editor address it.
  */
 
-import { Extension, Mark, mergeAttributes } from '@tiptap/core'
+import { Extension, Mark, Node, mergeAttributes } from '@tiptap/core'
 
 /** A pending insertion: underlined and coloured, click to select. */
 const TrackedInsertion = Mark.create({
@@ -146,6 +146,112 @@ const WorkspacePlaceholder = Mark.create({
 })
 
 export { TrackedInsertion, TrackedDeletion, CommentAnchor, WorkspacePlaceholder }
+
+/**
+ * An embedded manuscript image (Corrective Module 3).
+ *
+ * Images are NOT content-loadable from arbitrary URLs: the server renders the
+ * authorization-gated media route into the document JSON before the editor
+ * ever sees it, so an <img> here can only display a figure the current user
+ * was already allowed to see inside their copy of the manuscript.
+ *
+ * The node is a leaf block (atom) with no editable content of its own — the
+ * author's figure stays as it was imported; deleting the paragraph it came
+ * with must remain an explicit author decision. Alt text recorded on the Word
+ * docPr is carried in the `alt` attribute and shown in a <figcaption>, so the
+ * figure is describable even when it cannot render.
+ */
+const SubmissionImage = Node.create({
+  name: 'submissionImage',
+
+  group: 'block',
+  atom: true,
+  selectable: true,
+  draggable: false,
+
+  addAttributes () {
+    return {
+      src: { default: null },
+      mediaId: { default: null },
+      mediaPart: { default: null, parseHTML: () => null, renderHTML: () => ({}) },
+      alt: { default: null },
+      title: { default: null },
+      width: { default: null },
+      height: { default: null },
+      preserved: {
+        default: null,
+        parseHTML: element => element.getAttribute('data-preserved') !== null,
+        renderHTML: attributes => attributes.preserved ? { 'data-preserved': '' } : {},
+      },
+      diagnostic: {
+        default: null,
+        parseHTML: () => null,
+        renderHTML: () => ({}),
+      },
+    }
+  },
+
+  parseHTML () {
+    return [{ tag: 'img[data-manuscript-media]' }]
+  },
+
+  renderHTML ({ node, HTMLAttributes }) {
+    const attrs = mergeAttributes(HTMLAttributes, {
+      'data-manuscript-media': '',
+      src: node.attrs.src ?? '',
+      alt: node.attrs.alt ?? '',
+      title: node.attrs.title ?? '',
+    })
+
+    if (node.attrs.width) attrs.width = node.attrs.width
+    if (node.attrs.height) attrs.height = node.attrs.height
+
+    return ['img', attrs]
+  },
+
+  // A small figure wrapper: the actual image plus (when known) the caption
+  // text and an honest diagnostic placeholder when the media cannot load.
+  addNodeView () {
+    return ({ node }) => {
+      const dom = document.createElement('figure')
+      dom.className = 'oj-manuscript-figure'
+
+      const img = document.createElement('img')
+      img.setAttribute('data-manuscript-media', '')
+      img.alt = node.attrs.alt ?? ''
+      img.title = node.attrs.title ?? ''
+      if (node.attrs.width) img.setAttribute('width', String(node.attrs.width))
+      if (node.attrs.height) img.setAttribute('height', String(node.attrs.height))
+
+      const setStatus = text => {
+        let caption = dom.querySelector('figcaption')
+        if (!caption) {
+          caption = document.createElement('figcaption')
+          dom.appendChild(caption)
+        }
+        caption.textContent = text
+      }
+
+      img.src = node.attrs.src ?? ''
+
+      img.addEventListener('load', () => {
+        dom.classList.remove('oj-figure-missing')
+        if (node.attrs.alt) setStatus(node.attrs.alt)
+      })
+
+      img.addEventListener('error', () => {
+        dom.classList.add('oj-figure-missing')
+        setStatus(node.attrs.diagnostic || 'The image could not be displayed.')
+      })
+
+      dom.appendChild(img)
+
+      return { dom, contentDOM: null }
+    }
+  },
+})
+
+export { SubmissionImage }
 
 /**
  * Paragraph-level formatting (the office-suite essentials).

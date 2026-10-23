@@ -379,6 +379,34 @@
     .oj-track-delete { text-decoration: line-through; color: #b91c1c; background: #fee2e2; }
     .oj-comment-anchor { background: #fef3c7; border-bottom: 2px solid #f59e0b; }
     .oj-placeholder { color: #94a3b8; }
+
+    /* Embedded manuscript figures: the image the importer extracted from the
+       original package, at the size its labels declare. The wrapper keeps the
+       Word indents off the figure and centres it the way a figure paragraph
+       is conventionally shown; the caption carries the alt text recorded in
+       the source document. When the media cannot render, the honest state is
+       a visible diagnostic placeholder — never a silent gap. */
+    #editor-surface .tiptap figure.oj-manuscript-figure { margin: 1.2rem 0; text-align: center; text-indent: 0; }
+    #editor-surface .tiptap figure.oj-manuscript-figure img {
+        max-width: 100%;
+        height: auto;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+    }
+    #editor-surface .tiptap figcaption {
+        font-size: 10pt;
+        color: #475569;
+        margin-top: .35rem;
+        font-family: 'Calibri', 'Segoe UI', sans-serif;
+    }
+    #editor-surface .tiptap figure.oj-figure-missing img {
+        border: 1px dashed #f59e0b;
+        background: #fef8e7;
+        min-width: 18rem;
+        min-height: 6rem;
+    }
+    #editor-surface .tiptap figure.oj-figure-missing figcaption { color: #92400e; }
+
     .is-editor-empty:first-child::before {
         content: attr(data-placeholder);
         float: left; height: 0; pointer-events: none; color: #94a3b8;

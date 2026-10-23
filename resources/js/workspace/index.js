@@ -22,6 +22,7 @@ import {
   TrackedDeletion,
   CommentAnchor,
   ParagraphFormatting,
+  SubmissionImage,
 } from './extensions'
 import { AutosaveController } from './autosave'
 
@@ -112,6 +113,10 @@ const editor = new Editor({
     // statistical symbols survive the import as real marks.
     Superscript,
     Subscript,
+    // Embedded manuscript figures. Blocks render through the
+    // authorization-gated media endpoint the importer placed in their src;
+    // alt text from the Word docPr shows as the caption.
+    SubmissionImage,
   ],
   content: { type: 'doc', content: [] },
   editable: false,

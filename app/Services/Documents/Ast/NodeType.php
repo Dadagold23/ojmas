@@ -21,6 +21,7 @@ final class NodeType
     public const TABLE_CELL = 'table_cell';
     public const FIGURE = 'figure';
     public const EQUATION = 'equation';
+    public const INLINE_IMAGE = 'inline_image';
     public const BLOCKQUOTE = 'blockquote';
     public const FOOTNOTE = 'footnote';
     public const FOOTNOTE_REFERENCE = 'footnote_reference';

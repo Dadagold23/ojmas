@@ -307,6 +307,50 @@ class DocxFixtureFactory
         return $this->write($name, $body, $this->a4Section(1440));
     }
 
+    /**
+     * A figure gallery manuscript (Corrective Module 3).
+     *
+     * Three embedded images at DIFFERENT sizes, with and without alt text,
+     * positioned between paragraphs, adjacent to a table, and inside a table
+     * cell — the exact placements condition 7 of the image brief pins. All
+     * media bytes are synthetic.
+     */
+    public function mediaGallery(string $name = 'media-gallery.docx'): string
+    {
+        $image = base64_decode(self::PIXEL_PNG_BASE64);
+
+        $body = '';
+        $body .= $this->paragraph('A Figure Gallery Manuscript', ['style' => 'Title']);
+        $body .= $this->paragraph('Each figure is embedded at its own declared size.');
+
+        // Figure between paragraphs: small square, WITH alt text.
+        $body .= $this->image('rId100', 900001, 'Small square figure between paragraphs', 285750, 285750);
+        $body .= $this->paragraph('The paragraph right after the first figure.');
+
+        // Large figure declared half as tall as it is wide, no alt text.
+        $body .= $this->image('rId101', 900002, '', 1143000, 571500);
+        $body .= $this->paragraph('Text citing the large figure above.');
+
+        // A figure inside a table cell, next to a normal cell.
+        $body .= '<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="0" w:type="auto"/></w:tblPr>'
+            .'<w:tr><w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/></w:tcPr>'
+            .$this->paragraph('Cell text beside the figure')
+            .'</w:tc>'
+            .'<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/></w:tcPr>'
+            .$this->image('rId102', 900003, 'Figure inside a table cell', 190500, 190500)
+            .'</w:tc></w:tr>'
+            .'</w:tbl>';
+
+        $body .= $this->heading('References', 1);
+        $body .= $this->paragraph('Gallery, G. (2026). Figures at varying sizes. Journal of Testing, 3(1), 1-8.', ['hanging' => 720, 'left' => 720]);
+
+        return $this->write($name, $body, $this->a4Section(1440), [
+            'word/media/image1.png' => $image,
+            'word/media/image2.png' => $image,
+            'word/media/image3.png' => $image,
+        ], $this->mediaRelationships());
+    }
+
     private function run(string $text, string $runProperties = ''): string
     {
         $prefix = $runProperties === '' ? '' : '<w:rPr>'.$runProperties.'</w:rPr>';
@@ -591,21 +635,24 @@ class DocxFixtureFactory
         return $xml.'</w:tbl>';
     }
 
-    private function image(string $relationshipId, int $docPrId, string $description): string
+    private function image(string $relationshipId, int $docPrId, string $description, ?int $cx = null, ?int $cy = null): string
     {
         $nameAttribute = $description !== ''
             ? ' descr="'.$this->escape($description).'"'
             : '';
 
+        $cx = $cx ?? 571500;
+        $cy = $cy ?? 571500;
+
         return '<w:p><w:r><w:drawing>'
             .'<wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">'
-            .'<wp:extent cx="571500" cy="571500"/>'
+            .'<wp:extent cx="'.$cx.'" cy="'.$cy.'"/>'
             .'<wp:docPr id="'.$docPrId.'" name="Picture '.$docPrId.'"'.$nameAttribute.'/>'
             .'<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
             .'<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
             .'<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">'
             .'<pic:blipFill><a:blip r:embed="'.$relationshipId.'"/></pic:blipFill>'
-            .'<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="571500" cy="571500"/></a:xfrm>'
+            .'<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'.$cx.'" cy="'.$cy.'"/></a:xfrm>'
             .'<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>'
             .'</pic:pic></a:graphicData></a:graphic></wp:inline>'
             .'</w:drawing></w:r></w:p>';
@@ -694,12 +741,17 @@ class DocxFixtureFactory
 
     private function mediaRelationships(): string
     {
-        return '<Relationship Id="rId100" '
-            .'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" '
-            .'Target="media/image1.png"/>'
-            .'<Relationship Id="rId101" '
-            .'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" '
-            .'Target="media/image2.png"/>';
+        $relationships = '';
+
+        // rId100..rId104 cover every gallery/rich-media fixture image; unused
+        // ids are harmless and fixtures may reference any subset.
+        for ($index = 100; $index <= 104; $index++) {
+            $relationships .= '<Relationship Id="rId'.$index.'" '
+                .'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" '
+                .'Target="media/image'.($index - 99).'.png"/>';
+        }
+
+        return $relationships;
     }
 
     private function packageRelationships(): string

@@ -42,6 +42,9 @@ class DocxRenderer
 
     private int $drawingCounter = 1;
 
+    /** OOXML media part name → the relationship id relationshipsXml() records. @var array<string, string> */
+    private array $mediaRids = [];
+
     public function __construct(private readonly StyleProfile $profile)
     {
     }
@@ -311,11 +314,69 @@ class DocxRenderer
                 'tracked_insertion' => $this->renderTrackedChange($child, $overrides, false),
                 'tracked_deletion' => $this->renderTrackedChange($child, $overrides, true),
                 NodeType::EQUATION => $this->renderEquation($child),
+                // Corrective Module 3: a drawing the parser resolved to a
+                // media part is re-emitted as a REAL inline `<w:drawing>`
+                // bound to the carried media part — the formatted document
+                // keeps its figures instead of dropping them.
+                NodeType::INLINE_IMAGE => $this->renderInlineImage($child),
                 default => $this->inlineChildren($child, $overrides),
             };
         }
 
         return $xml;
+    }
+
+    /**
+     * Emits a genuine inline picture run for a parsed inline image.
+     *
+     * The relationship id is the one `relationshipsXml()` records for the
+     * carried part, so Word resolves the blip to the media bytes inside the
+     * package. Extents come from the source drawing's declared EMUs, falling
+     * back to a 100 px square when the source declared none. When the media
+     * part was somehow not carried, the run degrades to a clearly-labelled
+     * italic note — never a silent disappearance.
+     */
+    private function renderInlineImage(ManuscriptNode $node): string
+    {
+        $part = (string) ($node->attribute('media_part') ?? '');
+        $rid = $part !== '' ? ($this->mediaRids[$part] ?? null) : null;
+
+        if ($rid === null) {
+            $label = (string) ($node->attribute('description') ?? 'figure');
+
+            return '<w:r><w:rPr><w:i/></w:rPr><w:t xml:space="preserve">'
+                .$this->escape('[figure unavailable: '.$label.']')
+                .'</w:t></w:r>';
+        }
+
+        $cx = $node->attribute('extent_cx');
+        $cy = $node->attribute('extent_cy');
+        $cx = is_numeric($cx) && (int) $cx > 0 ? (int) $cx : 952500;
+        $cy = is_numeric($cy) && (int) $cy > 0 ? (int) $cy : 952500;
+
+        $this->drawingCounter++;
+        $drawingId = $this->drawingCounter;
+        $alt = trim((string) ($node->attribute('description') ?? ''));
+
+        return '<w:r><w:drawing>'
+            .'<wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"'
+            .' distT="0" distB="0" distL="0" distR="0">'
+            .'<wp:extent cx="'.$cx.'" cy="'.$cy.'"/>'
+            .'<wp:effectExtent l="0" t="0" r="0" b="0"/>'
+            .'<wp:docPr id="'.$drawingId.'" name="Figure '.$drawingId.'"'
+            .($alt !== '' ? ' descr="'.$this->escape($alt).'"' : '').'/>'
+            .'<wp:cNvGraphicFramePr><a:graphicFrameLocks'
+            .' xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"'
+            .' noChangeAspect="1"/></wp:cNvGraphicFramePr>'
+            .'<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+            .'<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+            .'<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+            .'<pic:nvPicPr><pic:cNvPr id="'.$drawingId.'" name="'.$this->escape($part).'"/><pic:cNvPicPr/></pic:nvPicPr>'
+            .'<pic:blipFill><a:blip r:embed="'.$rid.'"/>'
+            .'<a:stretch><a:fillRect/></a:stretch></pic:blipFill>'
+            .'<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'.$cx.'" cy="'.$cy.'"/></a:xfrm>'
+            .'<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>'
+            .'</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>';
     }
 
     /** @param array<string, mixed> $overrides */
@@ -410,7 +471,7 @@ class DocxRenderer
                 continue;
             }
 
-            if ($part === "\x{FFFC") {
+            if ($part === "\u{FFFC}") {
                 continue; // image placeholder: re-emitted from the media table
             }
 
@@ -519,6 +580,8 @@ class DocxRenderer
 
     private function carryMedia(OoxmlPackage $source): void
     {
+        $index = 0;
+
         foreach ($source->mediaPartNames() as $partName) {
             $contents = $source->raw($partName);
 
@@ -526,6 +589,11 @@ class DocxRenderer
                 continue;
             }
 
+            // The relationship id relationshipsXml() assigns to this part is
+            // fixed by carriage order, so it is recorded here for the drawing
+            // emitter — the blip references exactly that id.
+            $index++;
+            $this->mediaRids[$partName] = 'rIdImg'.$index;
             $this->carriedParts[$partName] = $contents;
         }
     }
@@ -560,6 +628,9 @@ class DocxRenderer
             .'<Default Extension="jpeg" ContentType="image/jpeg"/>'
             .'<Default Extension="jpg" ContentType="image/jpeg"/>'
             .'<Default Extension="gif" ContentType="image/gif"/>'
+            .'<Default Extension="webp" ContentType="image/webp"/>'
+            .'<Default Extension="bmp" ContentType="image/bmp"/>'
+            .'<Default Extension="tiff" ContentType="image/tiff"/>'
             .'<Default Extension="emf" ContentType="image/x-emf"/>'
             .'<Default Extension="wmf" ContentType="image/x-wmf"/>'
             .'<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'

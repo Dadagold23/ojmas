@@ -282,6 +282,10 @@ Route::middleware(array_filter([
         Route::get('/submissions/{submission}',                      [ManuscriptWorkspaceController::class, 'show'])->name('show');
         Route::get('/submissions/{submission}/document',            [ManuscriptWorkspaceController::class, 'document'])->name('document');
         Route::post('/submissions/{submission}/save',               [ManuscriptWorkspaceController::class, 'save'])->name('save');
+        // Embedded manuscript figures are served through this endpoint only:
+        // authenticated + the same openWorkspace policy check as the editor
+        // itself, so there is never a guessable public image URL.
+        Route::get('/submissions/{submission}/media/{media}',       [ManuscriptWorkspaceController::class, 'showMedia'])->name('media.show');
         Route::post('/submissions/{submission}/comments',           [ManuscriptWorkspaceController::class, 'storeComment'])->name('comments.store');
         Route::patch('/submissions/{submission}/comments/{comment}', [ManuscriptWorkspaceController::class, 'updateCommentStatus'])->name('comments.status');
         Route::post('/submissions/{submission}/changes',            [ManuscriptWorkspaceController::class, 'storeChange'])->name('changes.store');

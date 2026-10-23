@@ -4,16 +4,20 @@ namespace App\Services\Workspace;
 
 use App\Models\ArticleFile;
 use App\Models\ManuscriptDocument;
+use App\Models\ManuscriptMedia;
 use App\Models\ManuscriptSnapshot;
 use App\Models\ManuscriptVersion;
 use App\Models\ManuscriptWorkspaceDocument;
 use App\Models\Submission;
 use App\Models\User;
+use App\Services\Documents\Ast\ManuscriptNode;
+use App\Services\Documents\Ast\NodeType;
 use App\Services\Documents\Ast\ParsedManuscript;
 use App\Services\Documents\Exceptions\DocumentProcessingException;
 use App\Services\Documents\Formatting\DocxRenderer;
 use App\Services\Documents\Ingestion\DocxSecurityValidator;
 use App\Services\Documents\ManuscriptProcessingService;
+use App\Services\Documents\Media\ManuscriptMediaService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -55,8 +59,20 @@ class WorkspaceDocumentService
     public function __construct(
         private readonly DocxSecurityValidator $securityValidator,
         private readonly ManuscriptProcessingService $processing,
+        private readonly ManuscriptMediaService $media,
     ) {
     }
+
+    /**
+     * Media context of the conversion in flight (set by convert(), never
+     * relied on across calls): OOXML part name → extracted media row, and a
+     * resolver that turns a row into the policy-gated editor URL.
+     *
+     * @var array<string, ManuscriptMedia>|null
+     */
+    private ?array $mediaByPart = null;
+
+    private ?\Closure $mediaUrlResolver = null;
 
     /**
      * Finds or creates the working document for a parsed manuscript.
@@ -107,6 +123,12 @@ class WorkspaceDocumentService
         if (! $document->hasParsedSuccessfully()) {
             return null;
         }
+
+        // Corrective Module 3: workspaces imported before image extraction
+        // existed gain their media rows lazily on the next open. The service
+        // is idempotent — once rows exist it returns without opening the
+        // package, so repeated opens and saves never duplicate extraction.
+        $this->media->extractForVersion($document->version);
 
         return $this->forDocument($document, $submission->id);
     }
@@ -224,7 +246,20 @@ class WorkspaceDocumentService
         ParsedManuscript $manuscript,
         User $author,
     ): ManuscriptWorkspaceDocument {
-        $content = $this->convert($manuscript);
+        // Embedded images are extracted from the ORIGINAL package once (the
+        // service is idempotent) and can never be duplicated by later saves.
+        $version = $workspace->document?->version;
+        $mediaByPart = [];
+
+        if ($version !== null) {
+            $mediaByPart = $this->media->extractForVersion($version);
+        }
+
+        $submissionId = (int) $workspace->submission_id;
+
+        $content = $this->convert($manuscript, $mediaByPart, function (ManuscriptMedia $row) use ($submissionId): string {
+            return route('workspace.media.show', ['submission' => $submissionId, 'media' => $row->id]);
+        });
 
         $workspace->update([
             'content_json' => $content,
@@ -403,8 +438,14 @@ class WorkspaceDocumentService
      *
      * @return array<string, mixed>
      */
-    public function convert(ParsedManuscript $manuscript): array
+    public function convert(ParsedManuscript $manuscript, array $mediaByPart = [], ?\Closure $mediaUrlResolver = null): array
     {
+        // Per-conversion media context. Conversions are sequential within a
+        // request; the fields are set here and unset below, never relied on
+        // across calls.
+        $this->mediaByPart = $mediaByPart;
+        $this->mediaUrlResolver = $mediaUrlResolver;
+
         /** @return array<int, array<string, mixed>> */
         $blocks = [];
 
@@ -420,6 +461,9 @@ class WorkspaceDocumentService
                 $blocks[] = $entry;
             }
         }
+
+        $this->mediaByPart = null;
+        $this->mediaUrlResolver = null;
 
         if ($blocks === []) {
             $blocks[] = ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => '']]];
@@ -446,31 +490,48 @@ class WorkspaceDocumentService
                 $level = 1;
             }
 
-            return [[
+            $images = [];
+
+            $block = [
                 'type' => 'heading',
                 'attrs' => array_merge(
                     ['level' => max(1, min(6, $level)), 'submissionBlockType' => $node->type],
                     $this->formattingAttributes($node),
                 ),
-                'content' => $this->inlineContent($node),
-            ]];
+                'content' => $this->inlineContent($node, $images),
+            ];
+
+            return array_merge([$block], $images);
         }
 
         if ($type === 'blockquote') {
-            return [[
+            $images = [];
+
+            $block = [
                 'type' => 'blockquote',
-                'content' => [['type' => 'paragraph', 'content' => $this->inlineContent($node)]],
-            ]];
+                'content' => [['type' => 'paragraph', 'content' => $this->inlineContent($node, $images)]],
+            ];
+
+            return array_merge([$block], $images);
         }
 
-        return [[
+        $images = [];
+
+        $block = [
             'type' => 'paragraph',
             'attrs' => array_merge(
                 ['submissionBlockType' => $node->type],
                 $this->formattingAttributes($node),
             ),
-            'content' => $this->inlineContent($node),
-        ]];
+            'content' => $this->inlineContent($node, $images),
+        ];
+
+        // Images sit exactly where the source placed them: as their own
+        // blocks immediately following the paragraph they were embedded in —
+        // a figure paragraph in Word is a paragraph holding a drawing, so the
+        // editor shows the paragraph (kept, never destroyed) and then the
+        // figure itself.
+        return array_merge([$block], $images);
     }
 
     /**
@@ -535,11 +596,36 @@ class WorkspaceDocumentService
             $lines = [];
 
             foreach ($node->children as $line) {
+                // A nested Word table the cover-page promoter folded in keeps
+                // its real-grid conversion; the figures inside it are not
+                // lost (Corrective Module 3): tables are expanded, not
+                // flattened into a cover-page line.
+                if ($line->type === \App\Services\Documents\Ast\NodeType::TABLE) {
+                    $convertedTable = $this->convertTable($line);
+
+                    if ($convertedTable !== null) {
+                        foreach ($convertedTable as $block) {
+                            $lines[] = $block;
+                        }
+                    }
+
+                    continue;
+                }
+
+                // A figure embedded IN a cover-page line becomes its own block
+                // right after that line — same placement contract as body
+                // paragraphs, never a silent drop.
+                $lineImages = [];
+
                 $lines[] = [
                     'type' => 'paragraph',
                     'attrs' => ['submissionBlockType' => 'cover_page_line', 'preserved' => true],
-                    'content' => $this->inlineContent($line),
+                    'content' => $this->inlineContent($line, $lineImages),
                 ];
+
+                foreach ($lineImages as $image) {
+                    $lines[] = $image;
+                }
             }
 
             return $lines === [] ? null : $lines;
@@ -595,12 +681,20 @@ class WorkspaceDocumentService
                         continue;
                     }
 
-                    $inline = $this->inlineContent($cellParagraph);
+                    // Figures embedded inside a cell stay inside the cell:
+                    // they are appended after the cell's paragraphs rather
+                    // than escaping to document level.
+                    $cellImages = [];
+                    $inline = $this->inlineContent($cellParagraph, $cellImages);
 
                     $paragraphs[] = [
                         'type' => 'paragraph',
                         'content' => $inline === [] ? [] : $inline,
                     ];
+
+                    foreach ($cellImages as $image) {
+                        $paragraphs[] = $image;
+                    }
                 }
 
                 if ($paragraphs === []) {
@@ -641,11 +735,25 @@ class WorkspaceDocumentService
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function inlineContent(\App\Services\Documents\Ast\ManuscriptNode $node): array
+    private function inlineContent(\App\Services\Documents\Ast\ManuscriptNode $node, ?array &$capturedImages = null): array
     {
+        $capturedImages ??= [];
         $content = [];
 
         foreach ($node->children as $child) {
+            // A drawing the parser resolved to a media part becomes its own
+            // block node; the capture reference lets the block converter
+            // place it in the document exactly after its host paragraph.
+            if ($child->type === NodeType::INLINE_IMAGE) {
+                $image = $this->submissionImageNode($child);
+
+                if ($image !== null) {
+                    $capturedImages[] = $image;
+                }
+
+                continue;
+            }
+
             if ($child->type !== 'run') {
                 continue;
             }
@@ -700,6 +808,64 @@ class WorkspaceDocumentService
         }
 
         return $content;
+    }
+
+    /**
+     * Builds a Tiptap `submissionImage` block node from a parsed inline image.
+     *
+     * The `src` always points at the authorization-gated media endpoint —
+     * never at a guessable public path — and is only available when the
+     * extraction produced a media row for the drawing's part. When it did
+     * not, the node is emitted with `src = null` plus a diagnostic reason so
+     * the editor renders an honest placeholder instead of silently dropping
+     * the figure.
+     *
+     * Display size: the EMU extent the source declared (1 px = 9525 EMU),
+     * falling back to the probed pixel size of the extracted copy.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function submissionImageNode(ManuscriptNode $node): ?array
+    {
+        $part = (string) ($node->attribute('media_part') ?? '');
+
+        if ($part === '') {
+            return null;
+        }
+
+        $media = $this->mediaByPart !== null ? ($this->mediaByPart[$part] ?? null) : null;
+
+        $src = null;
+
+        if ($media !== null) {
+            $resolver = $this->mediaUrlResolver;
+            $src = $resolver !== null ? $resolver($media) : null;
+        }
+
+        $emu = 9525;
+        $cx = $node->attribute('extent_cx');
+        $cy = $node->attribute('extent_cy');
+        $width = is_numeric($cx) && (int) $cx > 0 ? (int) round(((int) $cx) / $emu) : $media?->width_px;
+        $height = is_numeric($cy) && (int) $cy > 0 ? (int) round(((int) $cy) / $emu) : $media?->height_px;
+
+        $attrs = [
+            'src' => $src,
+            'mediaId' => $media?->id,
+            'mediaPart' => $part !== '' ? $part : null,
+            'alt' => $node->attribute('description'),
+            'title' => $node->attribute('name'),
+            'width' => $width,
+            'height' => $height,
+            'preserved' => true,
+        ];
+
+        if ($src === null) {
+            $attrs['diagnostic'] = $media === null
+                ? 'The image part could not be extracted from the original manuscript.'
+                : 'The media file is present, but no view route could be resolved.';
+        }
+
+        return ['type' => 'submissionImage', 'attrs' => $attrs];
     }
 
     /**

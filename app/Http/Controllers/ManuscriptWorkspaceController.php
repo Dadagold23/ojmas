@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ManuscriptComment;
 use App\Models\ManuscriptDocument;
+use App\Models\ManuscriptMedia;
 use App\Models\ManuscriptSnapshot;
 use App\Models\ManuscriptTrackedChange;
 use App\Models\ManuscriptWorkspaceDocument;
@@ -403,6 +404,48 @@ class ManuscriptWorkspaceController extends Controller
     }
 
     // ───────────────────────── export ─────────────────────────
+
+    /**
+     * Serves one extracted manuscript image through the exact gate that
+     * decides who may open the workspace itself.
+     *
+     * There is no public, guessable path to a manuscript image: every request
+     * is authenticated (the route sits in the auth'd workspace group) and
+     * authorised with the same `openWorkspace` policy check the workspace UI
+     * uses, so authors see their own submission's figures, assigned reviewers
+     * and editors theirs, and an unrelated user gets the policy's 403. The
+     * substitution check makes cross-submission id guessing impossible.
+     *
+     * Images are served inline (Content-Disposition: inline) because the
+     * editor renders them as <img>; every access is recorded in the same
+     * access log as workspace opens.
+     */
+    public function showMedia(Request $request, Submission $submission, ManuscriptMedia $media): SymfonyResponse
+    {
+        $this->authorize('openWorkspace', $submission);
+
+        // The id in the URL must really belong to this submission; anything
+        // else is a lookup failure, not a permission statement.
+        if ((int) $media->submission_id !== (int) $submission->id) {
+            abort(404);
+        }
+
+        $disk = Storage::disk(config('manuscripts.disk', 'private'));
+
+        if (! $disk->exists($media->storage_path)) {
+            abort(404);
+        }
+
+        $document = ManuscriptWorkspaceDocument::where('submission_id', $submission->id)->first();
+
+        $this->accessLog->view($request->user(), $submission, $document?->document);
+
+        return $disk->response($media->storage_path, basename($media->storage_path), [
+            'Content-Type' => $media->mime_type,
+            'Content-Disposition' => 'inline; filename="'.basename($media->storage_path).'"',
+            'Cache-Control' => 'private, max-age=3600',
+        ]);
+    }
 
     public function export(Request $request, Submission $submission): SymfonyResponse
     {

@@ -85,6 +85,7 @@ class DocxStructureParser
 
         $body = $this->findBody($dom);
         $context = $this->buildParseContext();
+        $context['relationshipTargets'] = $this->relationshipTargets($package);
 
         foreach ($body->childNodes as $child) {
             if ($child instanceof DOMElement && $child->localName === 'sectPr') {
@@ -173,7 +174,63 @@ class DocxStructureParser
             'paragraphIndex' => 0,
             'footnotes' => [],
             'images' => [],
+            // Relationship id → OOXML part name, populated from the package's
+            // document relationships so embedded images resolve to their part.
+            'relationshipTargets' => [],
         ];
+    }
+
+    /**
+     * Maps each internal relationship id of the package to the part it points
+     * at ('media/image1.png' relative to word/ becomes 'word/media/image1.png').
+     *
+     * @return array<string, string>
+     */
+    private function relationshipTargets(OoxmlPackage $package): array
+    {
+        $xml = $package->relationshipsXml();
+
+        if ($xml === null) {
+            return [];
+        }
+
+        try {
+            $dom = $package->loadXml($xml, 'document relationships');
+        } catch (\App\Services\Documents\Exceptions\CorruptDocumentException) {
+            return [];
+        }
+
+        if ($dom === null) {
+            return [];
+        }
+
+        $targets = [];
+
+        foreach ($dom->documentElement?->childNodes ?? [] as $node) {
+            if (! $node instanceof DOMElement || $node->localName !== 'Relationship') {
+                continue;
+            }
+
+            // External targets (links to datasets, websites) are not parts of
+            // the package; they belong to the hyperlink flow, not to images.
+            if (strtolower((string) $node->getAttribute('TargetMode')) === 'external') {
+                continue;
+            }
+
+            $target = (string) $node->getAttribute('Target');
+            $part = match (true) {
+                str_starts_with($target, '/') => ltrim($target, '/'),
+                default => 'word/'.preg_replace('#^(\./)+#', '', $target),
+            };
+
+            if (! $package->has($part)) {
+                continue;
+            }
+
+            $targets[(string) $node->getAttribute('Id')] = $part;
+        }
+
+        return $targets;
     }
 
     private function findBody(\DOMDocument $dom): DOMElement
@@ -309,6 +366,24 @@ class DocxStructureParser
         if ($trimmed === '') {
             if ($hasPageBreak) {
                 return new ManuscriptNode(NodeType::PAGE_BREAK, $attributes, [], null);
+            }
+
+            // A figure paragraph holds a resolved inline_image and NO text:
+            // it is not a blank paragraph. Discarding the children here was
+            // exactly where every image used to vanish (Corrective Module 3):
+            // the paragraph is kept with its image children and flagged so
+            // downstream stages know it is a figure site, never flattened.
+            if (in_array(
+                NodeType::INLINE_IMAGE,
+                array_map(fn (ManuscriptNode $child) => $child->type, $children),
+                true,
+            ) || str_contains($text, "\u{FFFC}")) {
+                return new ManuscriptNode(
+                    NodeType::PARAGRAPH,
+                    $attributes + ['is_figure_paragraph' => true],
+                    $children,
+                    '',
+                );
             }
 
             return new ManuscriptNode(NodeType::PARAGRAPH, $attributes + ['is_blank' => true], [], '');
@@ -554,7 +629,28 @@ class DocxStructureParser
     private function parseRun(DOMElement $element, array &$context): ?array
     {
         $properties = $this->runProperties($element);
-        $texts = [];
+        $nodes = [];
+        $pendingText = [];
+
+        // Runs are segmented in document order: ordinary children accumulate
+        // into a run node; a drawing FLUSHES that run and appears as its own
+        // inline_image node at the exact position it occupies in the source.
+        // This is what preserves image positions and order through every
+        // later stage.
+        $flushRun = function () use (&$pendingText, &$nodes, $properties): void {
+            if ($pendingText === []) {
+                return;
+            }
+
+            $text = implode('', $pendingText);
+            $pendingText = [];
+
+            if ($text === '') {
+                return;
+            }
+
+            $nodes[] = new ManuscriptNode('run', $properties, [], $text);
+        };
 
         foreach ($element->childNodes as $child) {
             if (! $child instanceof DOMElement) {
@@ -563,66 +659,150 @@ class DocxStructureParser
 
             switch ($child->localName) {
                 case 't':
-                    $texts[] = $child->textContent;
+                    $pendingText[] = $child->textContent;
                     break;
 
                 case 'tab':
-                    $texts[] = "\t";
+                    $pendingText[] = "\t";
                     break;
 
                 case 'br':
                     if (strtolower($child->getAttribute('w:type')) === 'page') {
                         $context['pageBreaks'] = true;
                     }
-                    $texts[] = "\n";
+                    $pendingText[] = "\n";
                     break;
 
                 case 'noBreakHyphen':
-                    $texts[] = '-';
+                    $pendingText[] = '-';
                     break;
 
                 case 'drawing':
                 case 'pict':
                 case 'object':
-                    $texts[] = $this->parseDrawing($child, $context);
+                    $flushRun();
+                    $image = $this->parseInlineImage($child, $context);
+
+                    // A drawing whose media part cannot be resolved (broken
+                    // relationship, legacy VML form) falls back to the
+                    // historic zero-width marker so the text layout — and the
+                    // validation report's preserved-construct path — keeps
+                    // working. Nothing is silently dropped.
+                    if ($image !== null) {
+                        $nodes[] = $image;
+                    } else {
+                        $pendingText[] = "\u{FFFC}";
+                    }
                     break;
 
                 case 'footnoteReference':
                 case 'endnoteReference':
                     $id = $child->getAttribute('w:id');
                     $context['footnotes'][] = ['id' => $id, 'type' => $child->localName];
-                    $texts[] = null;
                     break;
 
                 case 'sym':
-                    $texts[] = '[symbol '.$child->getAttribute('w:char').']';
+                    $pendingText[] = '[symbol '.$child->getAttribute('w:char').']';
                     break;
             }
         }
 
-        if ($texts === []) {
-            return null;
-        }
+        $flushRun();
 
-        $text = implode('', array_map(fn ($piece) => $piece ?? '', $texts));
-
-        return [new ManuscriptNode(
-            'run',
-            $properties,
-            [],
-            $text,
-        )];
+        return $nodes === [] ? null : $nodes;
     }
 
-    private function parseDrawing(DOMElement $element, array &$context): string
+    /**
+     * Builds an inline_image node for a w:drawing (or legacy pict/object).
+     *
+     * The node carries the media part it points at (resolved through the
+     * package relationship map), the alt text Word recorded on the docPr, and
+     * the declared extent, so every later stage can size the figure honestly.
+     * Returns null when the form is unresolvable — the caller then keeps the
+     * legacy placeholder marker instead of inventing coordinates.
+     */
+    private function parseInlineImage(DOMElement $element, array &$context): ?ManuscriptNode
     {
         $context['images'][] = true;
 
         $description = $this->drawingDescription($element);
+        $name = $this->drawingName($element);
 
-        // The placeholder is a zero-width marker so it does not inject visible
-        // words into the manuscript text or the word count.
-        return "\u{FFFC}".($description !== null ? '' : '');
+        $rid = $this->drawingRelationshipId($element);
+        $part = $rid !== null ? ($context['relationshipTargets'][$rid] ?? null) : null;
+
+        if ($part === null) {
+            return null;
+        }
+
+        [$cx, $cy] = $this->drawingExtent($element);
+
+        return new ManuscriptNode(
+            NodeType::INLINE_IMAGE,
+            [
+                'relationship_id' => $rid,
+                'media_part' => $part,
+                'description' => $description ?: ($name !== null ? $name : null),
+                'name' => $name !== null ? $name : null,
+                'extent_cx' => $cx,
+                'extent_cy' => $cy,
+            ],
+            [],
+            null,
+        );
+    }
+
+    /** The a:blip (or v:imagedata) relationship id the drawing embeds. */
+    private function drawingRelationshipId(DOMElement $element): ?string
+    {
+        foreach ($element->getElementsByTagNameNS('*', 'blip') as $blip) {
+            $rid = (string) $blip->getAttribute('r:embed');
+
+            if ($rid !== '') {
+                return $rid;
+            }
+        }
+
+        foreach ($element->getElementsByTagNameNS('*', 'imagedata') as $imagedata) {
+            $rid = (string) $imagedata->getAttribute('r:id');
+
+            if ($rid !== '') {
+                return $rid;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The declared extent in EMUs, when the drawing declares one.
+     *
+     * @return array{0: int|null, 1: int|null}
+     */
+    private function drawingExtent(DOMElement $element): array
+    {
+        foreach ($element->getElementsByTagNameNS('*', 'extent') as $extent) {
+            $cx = (int) $extent->getAttribute('cx');
+            $cy = (int) $extent->getAttribute('cy');
+
+            return [$cx > 0 ? $cx : null, $cy > 0 ? $cy : null];
+        }
+
+        return [null, null];
+    }
+
+    /** The drawing's name, as Word shows it in the object list. */
+    private function drawingName(DOMElement $element): ?string
+    {
+        foreach ($element->getElementsByTagNameNS('*', 'docPr') as $docPr) {
+            $name = $docPr->getAttribute('name');
+
+            if ($name !== '') {
+                return $name;
+            }
+        }
+
+        return null;
     }
 
     private function drawingDescription(DOMElement $element): ?string
