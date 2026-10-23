@@ -45,6 +45,15 @@ class DocxRenderer
     /** OOXML media part name → the relationship id relationshipsXml() records. @var array<string, string> */
     private array $mediaRids = [];
 
+    /**
+     * Note parts (footnotes/endnotes) carried across from the source
+     * package. These need their own [Content_Types].xml overrides and
+     * document relationships, which media parts do not.
+     *
+     * @var array<int, string>
+     */
+    private array $carriedNoteParts = [];
+
     public function __construct(private readonly StyleProfile $profile)
     {
     }
@@ -61,6 +70,7 @@ class DocxRenderer
     ): void {
         if ($sourcePackage !== null) {
             $this->carryMedia($sourcePackage);
+            $this->carryNotes($sourcePackage, $manuscript);
         }
 
         $body = '';
@@ -319,6 +329,10 @@ class DocxRenderer
                 // bound to the carried media part — the formatted document
                 // keeps its figures instead of dropping them.
                 NodeType::INLINE_IMAGE => $this->renderInlineImage($child),
+                // Corrective Module 5: a footnote/endnote anchor re-emitted
+                // as the genuine OOXML reference marker Word expects.
+                NodeType::FOOTNOTE_REFERENCE => $this->renderNoteReference($child, false),
+                'endnote_reference' => $this->renderNoteReference($child, true),
                 default => $this->inlineChildren($child, $overrides),
             };
         }
@@ -377,6 +391,34 @@ class DocxRenderer
             .'<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'.$cx.'" cy="'.$cy.'"/></a:xfrm>'
             .'<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>'
             .'</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>';
+    }
+
+    /**
+     * Re-emits a footnote or endnote anchor as the genuine OOXML reference
+     * marker Word expects (Corrective Module 5).
+     *
+     * The marker is tied to the carried notes part; Word renders the number
+     * itself, so no ordinal text is written by us. When the note part is not
+     * available in the output package the anchor degrades to a visible
+     * bracketed ordinal — a marker whose note is missing must be visible,
+     * never silently dropped.
+     */
+    private function renderNoteReference(ManuscriptNode $node, bool $endnote): string
+    {
+        $id = (string) $node->attribute('note_id', '');
+        $partName = $endnote ? 'word/endnotes.xml' : 'word/footnotes.xml';
+
+        if ($id !== '' && array_key_exists($partName, $this->carriedParts)) {
+            $marker = $endnote ? 'w:endnoteReference' : 'w:footnoteReference';
+
+            return '<w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr>'
+                .'<'.$marker.' w:id="'.$this->escape($id).'"/></w:r>';
+        }
+
+        $ordinal = (string) $node->attribute('reference_ordinal', '');
+
+        return '<w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr><w:t xml:space="preserve">'
+            .$this->escape($ordinal !== '' ? '['.$ordinal.']' : '[note]').'</w:t></w:r>';
     }
 
     /** @param array<string, mixed> $overrides */
@@ -598,6 +640,32 @@ class DocxRenderer
         }
     }
 
+    /**
+     * Corrective Module 5: footnote and endnote bodies live in their own
+     * package parts. The parser reports them as preserved, so the formatted
+     * derivative carries both parts byte-for-byte and the reference markers
+     * the parser kept as inline nodes re-appear at their original anchors.
+     * Without this the APA document lost every note body while the report
+     * claimed it was preserved.
+     */
+    private function carryNotes(OoxmlPackage $source, ParsedManuscript $manuscript): void
+    {
+        if ($manuscript->footnotes === []) {
+            return;
+        }
+
+        foreach (['word/footnotes.xml', 'word/endnotes.xml'] as $partName) {
+            $contents = $source->raw($partName);
+
+            if ($contents === null) {
+                continue;
+            }
+
+            $this->carriedParts[$partName] = $contents;
+            $this->carriedNoteParts[] = $partName;
+        }
+    }
+
     private function relationshipsXml(): string
     {
         $xml = self::XML_HEADER
@@ -609,10 +677,21 @@ class DocxRenderer
         $index = 0;
 
         foreach (array_keys($this->carriedParts) as $partName) {
+            if (in_array($partName, $this->carriedNoteParts, true)) {
+                continue;
+            }
+
             $target++;
             $index++;
             $xml .= '<Relationship Id="rIdImg'.$index.'" Type="'.self::R_NS.'/image" Target="'
                 .$this->escape(str_replace('word/', '', $partName)).'"/>';
+        }
+
+        foreach ($this->carriedNoteParts as $partName) {
+            $short = str_replace('word/', '', $partName);
+            $id = $short === 'footnotes.xml' ? 'rIdNoteF' : 'rIdNoteE';
+            $type = $short === 'footnotes.xml' ? self::R_NS.'/footnotes' : self::R_NS.'/endnotes';
+            $xml .= '<Relationship Id="'.$id.'" Type="'.$type.'" Target="'.$this->escape($short).'"/>';
         }
 
         return $xml.'</Relationships>';
@@ -637,8 +716,15 @@ class DocxRenderer
             .'<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>'
             .'<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>'
             .'<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'
-            .'<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>'
-            .'</Types>';
+            .'<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>';
+
+        foreach ($this->carriedNoteParts as $partName) {
+            $short = str_replace('word/', '', $partName);
+            $kind = $short === 'footnotes.xml' ? 'footnotes' : 'endnotes';
+            $xml .= '<Override PartName="/word/'.$short.'" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.'.$kind.'+xml"/>';
+        }
+
+        $xml .= '</Types>';
 
         return $xml;
     }

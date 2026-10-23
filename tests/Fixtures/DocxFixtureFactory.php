@@ -468,6 +468,87 @@ class DocxFixtureFactory
         return $this->write($name, $body, $this->a4Section(1440));
     }
 
+    /**
+     * A manuscript whose paragraphs anchor genuine Word footnotes and an
+     * endnote (Corrective Module 5).
+     *
+     * The note bodies live in their own package parts exactly as Word writes
+     * them, and the in-text anchors are the real `w:footnoteReference` /
+     * `w:endnoteReference` markers. The APA formatting derivative must carry
+     * both parts byte-for-byte and re-emit every anchor.
+     */
+    public function footnoted(string $name = 'footnoted.docx'): string
+    {
+        $body = '';
+        $body .= $this->paragraph('A Manuscript With Footnote Anchors', ['style' => 'Title']);
+        $body .= $this->heading('Introduction', 1);
+
+        $body .= '<w:p>'
+            .$this->run('The sampling frame was drawn from the district register')
+            .$this->footnoteMarker(1)
+            .$this->run(' and the instrument was piloted in an earlier term')
+            .$this->endnoteMarker(1)
+            .$this->run('.')
+            .'</w:p>';
+
+        $body .= '<w:p>'
+            .$this->run('A second paragraph anchors another footnote')
+            .$this->footnoteMarker(2)
+            .$this->run('.')
+            .'</w:p>';
+
+        // A caption line, left exactly as authored by the engine.
+        $body .= $this->paragraph('Table 1. District register coverage');
+        $body .= $this->table([['Term', 'Schools'], ['2024', '112'], ['2025', '102']], true);
+
+        $body .= $this->paragraph('Note. Counts are taken from the 2026 district register.');
+
+        $body .= $this->heading('References', 1);
+        $body .= $this->paragraph('Markers, M. (2026). Notes at anchors. Journal of Testing, 5(1), 1-6.', ['hanging' => 720, 'left' => 720]);
+
+        $namespaces = ' xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+
+        $footnotesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<w:footnotes'.$namespaces.'>'
+            .'<w:footnote w:id="1"><w:p><w:r><w:t>The register lists all 214 schools in the district.</w:t></w:r></w:p></w:footnote>'
+            .'<w:footnote w:id="2"><w:p><w:r><w:t>The instrument was adapted during the 2024 pilot.</w:t></w:r></w:p></w:footnote>'
+            .'</w:footnotes>';
+
+        $endnotesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<w:endnotes'.$namespaces.'>'
+            .'<w:endnote w:id="1"><w:p><w:r><w:t>Fieldwork dates were verified against the school calendar.</w:t></w:r></w:p></w:endnote>'
+            .'</w:endnotes>';
+
+        return $this->write($name, $body, $this->a4Section(1440), [
+            'word/footnotes.xml' => $footnotesXml,
+            'word/endnotes.xml' => $endnotesXml,
+        ], $this->notesRelationships(), $this->notesContentTypes());
+    }
+
+    /** A genuine Word footnote anchor run. */
+    private function footnoteMarker(int $id): string
+    {
+        return '<w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr><w:footnoteReference w:id="'.$id.'"/></w:r>';
+    }
+
+    /** A genuine Word endnote anchor run. */
+    private function endnoteMarker(int $id): string
+    {
+        return '<w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr><w:endnoteReference w:id="'.$id.'"/></w:r>';
+    }
+
+    private function notesRelationships(): string
+    {
+        return '<Relationship Id="rIdFn" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes" Target="footnotes.xml"/>'
+            .'<Relationship Id="rIdEn" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes" Target="endnotes.xml"/>';
+    }
+
+    private function notesContentTypes(): string
+    {
+        return '<Override PartName="/word/footnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>'
+            .'<Override PartName="/word/endnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml"/>';
+    }
+
     // ───────────────────────── hostile fixtures ─────────────────────────
 
     /** A valid ZIP that is missing every required OOXML part. */
@@ -665,6 +746,7 @@ class DocxFixtureFactory
         string $sectionXml,
         array $extraParts = [],
         string $extraRelationships = '',
+        string $extraContentTypes = '',
     ): string {
         $path = $this->path($name);
 
@@ -691,6 +773,7 @@ class DocxFixtureFactory
             .'<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>'
             .'<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'
             .'<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>'
+            .$extraContentTypes
             .'</Types>';
 
         $zip = new ZipArchive();

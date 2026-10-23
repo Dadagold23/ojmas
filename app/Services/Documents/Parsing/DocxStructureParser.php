@@ -87,6 +87,11 @@ class DocxStructureParser
         $context = $this->buildParseContext();
         $context['relationshipTargets'] = $this->relationshipTargets($package);
 
+        // Corrective Module 5: the notes parts are read BEFORE the body so a
+        // `w:footnoteReference` inside a run can be matched to its note while
+        // the paragraphs are being built.
+        $context['notes'] = $this->parseNoteIndex($package);
+
         foreach ($body->childNodes as $child) {
             if ($child instanceof DOMElement && $child->localName === 'sectPr') {
                 $context['sectionProperties'][] = $this->parseSectionProperties($child);
@@ -133,9 +138,8 @@ class DocxStructureParser
         $blocks = $this->classifyFrontMatter($blocks);
         $blocks = $this->numberReferences($blocks);
 
-        $footnotes = $this->parseNotes($package->footnotesXml(), 'footnote');
-        $endnotes = $this->parseNotes($package->endnotesXml(), 'endnote');
-        $footnotes = array_merge($footnotes, $endnotes);
+        $footnotes = $context['notes']['all'];
+        unset($context['notes']['all']);
 
         $media = [];
 
@@ -173,6 +177,7 @@ class DocxStructureParser
             'sectionProperties' => [],
             'paragraphIndex' => 0,
             'footnotes' => [],
+            'noteRefOrdinal' => 0,
             'images' => [],
             // Relationship id → OOXML part name, populated from the package's
             // document relationships so embedded images resolve to their part.
@@ -697,8 +702,23 @@ class DocxStructureParser
 
                 case 'footnoteReference':
                 case 'endnoteReference':
+                    $noteKind = $child->localName === 'footnoteReference' ? 'footnote' : 'endnote';
                     $id = $child->getAttribute('w:id');
                     $context['footnotes'][] = ['id' => $id, 'type' => $child->localName];
+
+                    // Corrective Module 5: the anchor becomes a real inline
+                    // node so the reference marker is re-emitted in every
+                    // derivative. Previously the marker silently vanished
+                    // from the paragraph, which also freed the note body
+                    // from its anchor in the formatted document.
+                    $nodes[] = new ManuscriptNode(
+                        $noteKind === 'footnote' ? NodeType::FOOTNOTE_REFERENCE : 'endnote_reference',
+                        [
+                            'note_id' => $id,
+                            'kind' => $noteKind,
+                            'reference_ordinal' => ++$context['noteRefOrdinal'],
+                        ],
+                    );
                     break;
 
                 case 'sym':
@@ -1312,6 +1332,28 @@ class DocxStructureParser
     /**
      * @return array<int, array<string, mixed>>
      */
+    /**
+     * Reads every footnote and endnote once and indexes them so run parsing
+     * can resolve each in-text anchor to its kind and note id.
+     *
+     * @return array{all: array<int, array<string, mixed>>, byKey: array<string, array<string, array<string, mixed>>>}
+     */
+    private function parseNoteIndex(OoxmlPackage $package): array
+    {
+        $all = array_merge(
+            $this->parseNotes($package->footnotesXml(), 'footnote'),
+            $this->parseNotes($package->endnotesXml(), 'endnote'),
+        );
+
+        $byKey = [];
+
+        foreach ($all as $note) {
+            $byKey[(string) ($note['kind'] ?? '')][(string) ($note['id'] ?? '')] = $note;
+        }
+
+        return ['all' => $all, 'byKey' => $byKey];
+    }
+
     private function parseNotes(?string $xml, string $kind): array
     {
         if ($xml === null) {

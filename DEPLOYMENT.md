@@ -630,6 +630,30 @@ assigned reviewers, editors/managing editors/admins), returns 404 on
 cross-submission id guessing, and serves `Content-Disposition: inline` —
 never from a publicly guessable path.
 
+## Corrective Module 5 — APA 7 formatting safety (footnotes + captions)
+
+**No migration, no new dependency, no queue/cron change.** Code-only, additive:
+
+1. **Footnotes/endnotes now survive APA formatting.** The formatted derivative
+   carries `word/footnotes.xml` / `word/endnotes.xml` byte-for-byte from the
+   original and re-emits every in-text anchor as a real Word reference marker.
+   Previously the APA output silently lost note bodies and anchors while the
+   validation report still claimed preservation. Old formatted documents are NOT
+   rewritten silently — the fix applies to formatting runs executed after deploy.
+2. **Table/figure captions and note lines are no longer auto-indented.** Paragraphs
+   shaped like "Table N.", "Figure N." or "Note. …" are left exactly as authored and
+   flagged in the validation report (`layout.caption_left_for_review`, severity
+   info) instead of silently restyled. Body sentences starting "Table 1 reports…"
+   are deliberately NOT treated as captions.
+
+**Verification after deployment**: format one footnote-bearing manuscript and open
+the formatted DOCX in Word — the note anchors must show superscript numbers and the
+notes pane must list every note; check the report page shows the caption flags.
+
+**Rollback**: revert the code commit; nothing persists from this module (no tables,
+no storage layout changes; a re-run after rollback simply returns to the previous
+without-notes behaviour).
+
 ## Addendum Module 6 — Security Consolidation (no migration, no .env, no cron)
 
 Code-only hardening and documentation; deploy it together with the addendum code:

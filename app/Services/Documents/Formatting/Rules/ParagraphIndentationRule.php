@@ -73,6 +73,27 @@ class ParagraphIndentationRule implements FormattingRule
                 continue;
             }
 
+            // Corrective Module 5: a table caption, figure caption or note
+            // line is not an ordinary body paragraph. Indenting it would be
+            // both numerically wrong for APA 7 (captions and notes are
+            // presented flush left) and an editorial judgement the engine
+            // cannot verify, so it is left exactly as authored and flagged
+            // for review instead of silently restyled.
+            if ($this->isCaptionLikeParagraph($block)) {
+                $findings[] = RuleFinding::info(
+                    $this->category(),
+                    'layout.caption_left_for_review',
+                    'This paragraph appears to be a table or figure caption, or a note line. The engine left its indentation and '
+                    .'alignment exactly as authored; APA 7 presents captions and notes flush left, so please confirm their '
+                    .'presentation.',
+                    $this->id(),
+                    self::VERSION,
+                    $location,
+                );
+
+                continue;
+            }
+
             if ($this->isFrontMatterLine($block)) {
                 $findings = array_merge(
                     $findings,
@@ -124,6 +145,31 @@ class ParagraphIndentationRule implements FormattingRule
         }
 
         return preg_match('/^\s*(keywords|key\s+words)\s*:/iu', (string) $block->text) === 1;
+    }
+
+    /**
+     * APA 7 §7 caption shapes: "Table 1. Demographic summary", "Table 1"
+     * alone, "Figure 3: scores" and the "Note." line under a table.
+     *
+     * Deliberately conservative: a number must be followed by a colon, a
+     * period, or the end of the line, so an ordinary body sentence such as
+     * "Table 1 reports the results." is NOT treated as a caption. It only
+     * guards against mis-indented captions; it never claims more than that.
+     */
+    private function isCaptionLikeParagraph(ManuscriptNode $block): bool
+    {
+        $text = trim((string) $block->text);
+
+        if ($text === '') {
+            return false;
+        }
+
+        if (preg_match('/^(table|figure)\s+\d+(?:\s*[.:]|\s*$)/iu', $text) === 1) {
+            return true;
+        }
+
+        // APA table notes begin with the literal label "Note.".
+        return preg_match('/^note\.\s/iu', $text) === 1;
     }
 
     /**

@@ -74,7 +74,12 @@ class ContentPreservationRule implements FormattingRule
             $findings[] = RuleFinding::info(
                 $this->category(),
                 'content.note_preserved',
-                sprintf('A %s was preserved with its text intact.', (string) ($note['kind'] ?? 'note')),
+                sprintf(
+                    'A %s (%s) was preserved with its text and carried into the formatted document with its in-text '
+                    .'anchor intact.',
+                    (string) ($note['kind'] ?? 'note'),
+                    (string) ($note['text'] ?? ''),
+                ),
                 $this->id(),
                 self::VERSION,
                 ['note_id' => $note['id'] ?? null, 'kind' => $note['kind'] ?? null],
