@@ -553,9 +553,10 @@ class DocxFixtureFactory
 
     /**
      * Test F image problems in one manuscript: one healthy PNG figure, one
-     * figure whose media part uses an unsupported extension (.heic), and one
-     * drawing whose relationship id does not exist at all. The pipeline must
-     * preserve all three positions and report each problem honestly.
+     * figure whose media part uses an unsupported extension (.heic), one
+     * part whose bytes contradict its claimed .png format, and one drawing
+     * whose relationship id does not exist at all. The pipeline must
+     * preserve all four positions and report each problem honestly.
      */
     public function regressionImageProblems(string $name = 'regression-f-image-problems.docx'): string
     {
@@ -568,25 +569,34 @@ class DocxFixtureFactory
         $body .= $this->image('rId100', 620001, 'A healthy figure', 571500, 381000);
         $body .= $this->paragraph('Figure 2 below carries an unsupported image format.');
         $body .= $this->image('rId101', 620002, 'A HEIC figure the browser cannot show', 762000, 571500);
-        $body .= $this->paragraph('Figure 3 below references a relationship id that does not exist.');
+        $body .= $this->paragraph('Figure 3 below claims to be a PNG but its bytes are not image data.');
+        $body .= $this->image('rId102', 620004, 'A part with fake PNG bytes', 762000, 571500);
+        $body .= $this->paragraph('Figure 4 below references a relationship id that does not exist.');
         $body .= $this->image('rId999', 620003, 'A drawing with no relationship', 762000, 571500);
-        $body .= $this->paragraph('Closing paragraph, placed after all three problem figures.');
+        $body .= $this->paragraph('Closing paragraph, placed after all four problem figures.');
 
         return $this->write($name, $body, $this->a4Section(1440), [
             'word/media/image1.png' => $image,
             // The .heic part EXISTS and its relationship DOES point at it:
             // nothing is missing except display support.
             'word/media/image2.heic' => base64_decode('aGVpYy1pZ25vcmVkLWJ5dGVz'), // "heic-ignored-bytes"
+            // The .png part exists and its relationship points at it, but the
+            // bytes are plain text, not image data: a claim mismatch.
+            'word/media/image3.png' => 'twenty-eight bytes of plain text, not an image',
         ],
             // Custom relationships: rId100 → the healthy PNG, rId101 → the
-            // HEIC part, and rId999 deliberately declared by NOBODY — the
-            // drawing that references it is a genuinely broken reference.
+            // HEIC part, rId102 → the fake PNG (claim mismatch), and rId999
+            // deliberately declared by NOBODY — the drawing that references
+            // it is a genuinely broken reference.
             '<Relationship Id="rId100" '
             .'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" '
             .'Target="media/image1.png"/>'
             .'<Relationship Id="rId101" '
             .'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" '
-            .'Target="media/image2.heic"/>',
+            .'Target="media/image2.heic"/>'
+            .'<Relationship Id="rId102" '
+            .'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" '
+            .'Target="media/image3.png"/>',
             '<Default Extension="heic" ContentType="image/heic"/>');
     }
 

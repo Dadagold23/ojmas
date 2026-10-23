@@ -752,7 +752,7 @@ class CorrectiveLifecycleRegressionTest extends TestCase
 
         $payload = $this->documentPayload($submission, $author);
         $images = $this->imagesOf($payload['content']);
-        $this->assertCount(2, $images, 'Two real drawings survive: the PNG and the HEIC one.');
+        $this->assertCount(3, $images, 'Three real drawings survive: PNG, HEIC and the fake-PNG one.');
 
         $unsupported = $images[1];
         $this->assertSame('A HEIC figure the browser cannot show', (string) $unsupported['attrs']['alt']);
@@ -762,6 +762,12 @@ class CorrectiveLifecycleRegressionTest extends TestCase
         $media = ManuscriptMedia::where('submission_id', $submission->id)->orderBy('id')->get();
         $this->assertSame('image/png', $media[0]->mime_type);
         $this->assertSame('unhandled/heic', $media[1]->mime_type, 'The unsupported part is recorded with its fault; it is not dropped.');
+        $this->assertSame('invalid/png', $media[2]->mime_type, 'The claim mismatch is recorded instead of a fake healthy mime.');
+
+        $fakePng = $images[2];
+        $this->assertSame('A part with fake PNG bytes', (string) $fakePng['attrs']['alt']);
+        $this->assertTrue((bool) ($fakePng['attrs']['unsupported'] ?? false), 'The claim mismatch is flagged.');
+        $this->assertStringContainsString('do not decode', (string) $fakePng['attrs']['diagnostic']);
 
         // A drawing whose relationship id does not exist at all degrades to
         // the historic marker inside its paragraph — position stays, the
@@ -778,10 +784,10 @@ class CorrectiveLifecycleRegressionTest extends TestCase
 
         $this->assertSame(1, $markerCount, 'The missing relationship stays an explicit visible marker.');
 
-        // Closing text after all three problem figures is intact.
+        // Closing text after all four problem figures is intact.
         $blocks = $this->blocksOf($payload['content']);
         $last = $blocks[count($blocks) - 1];
-        $this->assertStringContainsString('Closing paragraph, placed after all three problem figures.', $this->blockText($last));
+        $this->assertStringContainsString('Closing paragraph, placed after all four problem figures.', $this->blockText($last));
 
         // The original file was never written over by this conversion run.
         $version = ManuscriptVersion::where('submission_id', $submission->id)->sole();

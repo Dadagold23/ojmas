@@ -868,7 +868,20 @@ class WorkspaceDocumentService
         // An extraction row recorded an extension nothing can display: the
         // figure is preserved honestly with a diagnosis rather than silently
         // rendered as a broken pixel frame.
-        if ($media !== null && str_starts_with((string) $media->mime_type, 'unhandled/')) {
+        $mime = (string) ($media?->mime_type ?? '');
+
+        if (str_starts_with($mime, 'invalid/')) {
+            // The part claims a displayable format but its bytes do not
+            // decode as that format (Corrective Module 8): report the
+            // mismatch instead of silently presenting corrupt data as a
+            // healthy-looking image frame.
+            $attrs['unsupported'] = true;
+            $attrs['diagnostic'] = sprintf(
+                'The embedded image is stored as "%s", but its bytes do not decode as that image format. It is kept '
+                .'verbatim in position; open the original manuscript in Word to inspect the figure.',
+                pathinfo((string) $media->part_name, PATHINFO_EXTENSION) ?: 'bin',
+            );
+        } elseif (str_starts_with($mime, 'unhandled/')) {
             $attrs['unsupported'] = true;
             $attrs['diagnostic'] = sprintf(
                 'The embedded image uses the file extension "%s", which the workspace cannot display. It is preserved '

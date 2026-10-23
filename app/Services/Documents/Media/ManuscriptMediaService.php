@@ -87,6 +87,20 @@ class ManuscriptMediaService
 
             [$width, $height] = $this->probeDimensions($bytes, $extension);
 
+            // A part that claims a displayable raster type but whose bytes do
+            // not decode as that format is a claim mismatch (Corrective
+            // Module 8: image content is validated, not trusted by
+            // extension). The row — and the figure — stay in place; the fake
+            // type is recorded with an honest `invalid/` prefix everywhere
+            // downstream instead of presenting corrupt bytes as a healthy
+            // image. Vector/metafile formats legitimately have no raster
+            // probe and keep their declared type.
+            if ($width === null && $height === null
+                && in_array($extension, ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'], true)
+                && function_exists('imagecreatefromstring')) {
+                $mime = 'invalid/'.($extension !== '' ? $extension : 'bin');
+            }
+
             $path = sprintf(
                 'manuscripts/media/%d/%d/%s',
                 (int) $version->submission_id,
