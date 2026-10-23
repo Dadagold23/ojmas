@@ -865,6 +865,18 @@ class WorkspaceDocumentService
                 : 'The media file is present, but no view route could be resolved.';
         }
 
+        // An extraction row recorded an extension nothing can display: the
+        // figure is preserved honestly with a diagnosis rather than silently
+        // rendered as a broken pixel frame.
+        if ($media !== null && str_starts_with((string) $media->mime_type, 'unhandled/')) {
+            $attrs['unsupported'] = true;
+            $attrs['diagnostic'] = sprintf(
+                'The embedded image uses the file extension "%s", which the workspace cannot display. It is preserved '
+                .'verbatim; open the original manuscript in Word to view it.',
+                pathinfo((string) $media->part_name, PATHINFO_EXTENSION) ?: 'bin',
+            );
+        }
+
         return ['type' => 'submissionImage', 'attrs' => $attrs];
     }
 

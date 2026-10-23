@@ -654,6 +654,38 @@ notes pane must list every note; check the report page shows the caption flags.
 no storage layout changes; a re-run after rollback simply returns to the previous
 without-notes behaviour).
 
+---
+
+## Corrective Modules 6–7 — lifecycle + permanent regression suites
+
+**No migration, no new dependency, no queue/cron change.** Regression suite +
+two targeted code fixes:
+
+1. **Run-boundary spaces survive saves.** The framework's global string
+   trimming ran over the Tiptap payload the browser sends to
+   `workspace/save` and erased spaces at run boundaries (e.g. `x` + `2` +
+   `" and "` collapsed into `x2and`) — every save of a formatted run
+   corrected its whitespace. The endpoints carrying manuscript content
+   (`workspace/submissions/*/save`, `workspace/submissions/*/changes`) are
+   now exempt from trimming; everything else keeps standard behaviour.
+2. **Unsupported embedded image formats are diagnosed.** A figure whose media
+   part extension cannot be displayed (e.g. `.heic`) is preserved as before,
+   but its editor node now additionally carries `unsupported` plus a
+   `diagnostic` text so the problem is visible in the data, not only as a
+   broken image frame.
+3. **New permanent regression suite** `CorrectiveLifecycleRegressionTest`
+   (Module 7 tests A–F and the Module 6 lifecycle round trip); five new
+   representative fixtures. The suite fails loudly if the regression ever
+   recurs.
+
+**Verification after deployment**: no manual step beyond the standard suite;
+optionally run the lifecycle test on the deployment environment
+(`php artisan test tests/Feature/Workspace/CorrectiveLifecycleRegressionTest.php`).
+
+**Rollback**: revert the code commit. The TrimStrings exemption disappears
+with it (saves would once again trim run-boundary spaces) but no data,
+schema or storage layout change is involved.
+
 ## Addendum Module 6 — Security Consolidation (no migration, no .env, no cron)
 
 Code-only hardening and documentation; deploy it together with the addendum code:

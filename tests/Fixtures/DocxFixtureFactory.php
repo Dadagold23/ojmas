@@ -351,6 +351,246 @@ class DocxFixtureFactory
         ], $this->mediaRelationships());
     }
 
+    // ───────────── Corrective Modules 6–7 representative manuscripts ─────────────
+
+    /**
+     * Test A paragraphs: 12 ordinary paragraphs plus 3 list items, headings
+     * on three levels, inline emphasis (italic, bold, superscript,
+     * underline), one soft line break inside a paragraph and centred lines.
+     * Everything a paragraph-boundary regression must be tripped by.
+     */
+    public function regressionParagraphs(string $name = 'regression-a-paragraphs.docx'): string
+    {
+        $body = '';
+        $body .= $this->paragraph('Regression Test A Paragraph Boundary Fidelity', ['style' => 'Title', 'jc' => 'center']);
+        $body .= $this->paragraph('Regression, R. (2026). Paragraph boundary fidelity. Journal of Testing.', ['jc' => 'center']);
+
+        $body .= $this->heading('Introduction', 1);
+        $body .= $this->paragraph('PARA-01 First paragraph of the introduction on boundary fidelity.');
+        $body .= $this->paragraph('PARA-02 Second paragraph, immediately following the first without a soft break.');
+        $body .= $this->paragraph('PARA-03 Third paragraph. A hard page break separates it from the next section.');
+
+        $body .= $this->heading('Method', 1);
+        $body .= $this->heading('Participants', 2);
+        $body .= $this->paragraph('PARA-04 The participants section opens here with its own paragraph.');
+        $body .= $this->paragraph('PARA-05 A second method paragraph, deliberately long, exercising data handling and '
+            .'word wrapping across a full line so that binding it to its neighbours would be visible immediately.');
+
+        $body .= '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="7"/></w:numPr><w:ind w:left="720"/></w:pPr>'
+            .$this->run('ITEM-01 First list item, one paragraph of its own.')
+            .'</w:p>';
+        $body .= '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="7"/></w:numPr><w:ind w:left="720"/></w:pPr>'
+            .$this->run('ITEM-02 Second list item, separate again.')
+            .'</w:p>';
+        $body .= '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="7"/></w:numPr><w:ind w:left="720"/></w:pPr>'
+            .$this->run('ITEM-03 Third list item, never merged with item two.')
+            .'</w:p>';
+
+        $body .= $this->heading('Results', 1);
+        $body .= $this->heading('Subscores', 2);
+        $body .= $this->heading('Domain detail', 3);
+
+        // Inline emphasis inside one paragraph: italic, bold, superscript,
+        // underline. An exponent must never fall back to the baseline.
+        $body .= '<w:p>'
+            .$this->run('PARA-06 Inline formatting: ')
+            .$this->run('an italic phrase', '<w:i/>')
+            .$this->run(', ')
+            .$this->run('a bold phrase', '<w:b/>')
+            .$this->run(', ')
+            .$this->run('x', '')
+            .$this->run('2', '<w:vertAlign w:val="superscript"/>')
+            .$this->run(' and ')
+            .$this->run('an underlined phrase', '<w:u w:val="single"/>')
+            .$this->run('.')
+            .'</w:p>';
+
+        // One paragraph with an intentional soft line break inside it.
+        $body .= '<w:p>'
+            .$this->run('PARA-07 First visual line of a soft-wrapped paragraph.')
+            .$this->runWithLineBreak('Second visual line, still the same paragraph.')
+            .'</w:p>';
+
+        $body .= $this->paragraph('PARA-08 A plain paragraph after the inline-fidelity cases.');
+
+        $body .= $this->heading('Discussion', 1);
+        $body .= $this->heading('Implications', 2);
+        $body .= $this->paragraph('PARA-09 The discussion opens with a single sentence.');
+        // A centred line — a deliberate alignment choice that must survive.
+        $body .= $this->paragraph('PARA-10 A deliberately centred line.', ['jc' => 'center']);
+        $body .= $this->paragraph('PARA-11 The penultimate paragraph returns to the left margin.');
+        $body .= $this->paragraph('PARA-12 Final paragraph. Boundary fidelity is what this manuscript is about.');
+
+        return $this->write($name, $body, $this->a4Section(1440));
+    }
+
+    /**
+     * Test B simple table: exactly 3 columns and 4 rows — a text/number
+     * header row and three data rows mixing text and decimal numbers.
+     */
+    public function regressionTableSimple(string $name = 'regression-b-table.docx'): string
+    {
+        $body = '';
+        $body .= $this->paragraph('Regression Test B Simple Table', ['style' => 'Title']);
+        $body .= $this->heading('Results', 1);
+        $body .= $this->paragraph('The table below carries the descriptive statistics.');
+
+        $body .= $this->table([
+            ['Variable', 'Mean score', 'Standard deviation'],
+            ['Scaffolded group', '72.4', '8.1'],
+            ['Control group', '64.9', '9.7'],
+            ['Adjusted difference', '7.5', '6.2'],
+        ], true);
+
+        $body .= $this->heading('References', 1);
+        $body .= $this->paragraph('Tabler, T. (2026). Simple table fidelity. Journal of Testing, 6(1), 1-4.', ['hanging' => 720, 'left' => 720]);
+
+        return $this->write($name, $body, $this->a4Section(1440));
+    }
+
+    /**
+     * Test C complex table: merged cells (a heading cell spanning two grid
+     * columns), long multi-paragraph cell text, a caption line above and the
+     * "Note." line below, and a wide fixed layout.
+     */
+    public function regressionTableComplex(string $name = 'regression-c-table.docx'): string
+    {
+        $body = '';
+        $body .= $this->paragraph('Regression Test C Complex Table', ['style' => 'Title']);
+        $body .= $this->heading('Results', 1);
+
+        $body .= $this->paragraph('Table 3. Regional distribution of participating schools and learners');
+
+        $body .= '<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="9360" w:type="dxa"/></w:tblPr>'
+            .'<w:tblGrid><w:gridCol w:w="4680"/><w:gridCol w:w="2340"/><w:gridCol w:w="2340"/></w:tblGrid>'
+            // Header: a merged cell across the first two columns + a normal third cell.
+            .'<w:tr><w:trPr><w:tblHeader/></w:trPr>'
+            .'<w:tc><w:tcPr><w:tcW w:w="7020" w:type="dxa"/><w:gridSpan w:val="2"/></w:tcPr>'
+            .$this->paragraph('Merged region header')
+            .'</w:tc>'
+            .'<w:tc><w:tcPr><w:tcW w:w="2340" w:type="dxa"/></w:tcPr>'
+            .$this->paragraph('Share %')
+            .'</w:tc></w:tr>'
+            // Long cell text: multiple paragraphs inside ONE cell.
+            .'<w:tr><w:tc><w:tcPr><w:tcW w:w="4680" w:type="dxa"/></w:tcPr>'
+            .$this->paragraph('NORTH WEST ZONE: The largest zone of the survey, comprising two states and eleven '
+                .'local education districts whose schools participated across three academic terms of the study window.')
+            .$this->paragraph('A second paragraph inside the same cell, so cell-internal paragraph boundaries must '
+                .'be preserved as well as the table row and column structure around them.')
+            .'</w:tc>'
+            .'<w:tc><w:tcPr><w:tcW w:w="2340" w:type="dxa"/></w:tcPr>'.$this->paragraph('486 schools').'</w:tc>'
+            .'<w:tc><w:tcPr><w:tcW w:w="2340" w:type="dxa"/></w:tcPr>'.$this->paragraph('38.2%').'</w:tc></w:tr>'
+            .'<w:tr><w:tc><w:tcPr><w:tcW w:w="4680" w:type="dxa"/></w:tcPr>'.$this->paragraph('SOUTH WEST ZONE').'</w:tc>'
+            .'<w:tc><w:tcPr><w:tcW w:w="2340" w:type="dxa"/></w:tcPr>'.$this->paragraph('341 schools').'</w:tc>'
+            .'<w:tc><w:tcPr><w:tcW w:w="2340" w:type="dxa"/></w:tcPr>'.$this->paragraph('26.9%').'</w:tc></w:tr>'
+            .'</w:tbl>';
+
+        $body .= $this->paragraph('Note. Percentages are of all participating learners; totals differ per term.');
+
+        $body .= $this->heading('References', 1);
+        $body .= $this->paragraph('Ejelonu, U. (2026). Complex table fidelity. Journal of Testing, 6(2), 5-9.', ['hanging' => 720, 'left' => 720]);
+
+        return $this->write($name, $body, $this->a4Section(1440));
+    }
+
+    /**
+     * Test E mixed academic manuscript: headings on two levels, twelve
+     * paragraphs with citations, a table, figures with their captions
+     * (caption BEFORE each figure, as APA presents them), and a reference
+     * list — the ordering contract the whole corrective programme serves.
+     */
+    public function regressionMixed(string $name = 'regression-e-mixed.docx'): string
+    {
+        $image = base64_decode(self::PIXEL_PNG_BASE64);
+
+        $body = '';
+        $body .= $this->paragraph('Scaffolding and Achievement in Rural Secondary Schools of the Middle Belt', ['style' => 'Title']);
+        $body .= $this->paragraph('Chiamaka Okonkwo and Tunde Bakare', ['jc' => 'center', 'bold' => true]);
+        $body .= $this->paragraph('Department of Educational Foundations, University of Jos', ['jc' => 'center']);
+
+        $body .= $this->heading('Introduction', 1);
+        $body .= $this->paragraph('Instructional scaffolding remains a central construct in learning theory, and its '
+            .'classroom value has been demonstrated repeatedly (Vygotsky, 1978; Wood et al., 1976).');
+        $body .= $this->paragraph('EVIDENCE-P1 Evidence from Nigerian rural classrooms has, however, accumulated slowly, '
+            .'and large-sample studies of middle-belt states remain rare (Okonkwo, 2023).');
+        $body .= $this->paragraph('EVIDENCE-P2 This study therefore asked whether structured teacher-led scaffolding '
+            .'lifts achievement in junior secondary students, and whether the effect survives term-on-term follow-up.');
+
+        $body .= $this->heading('Method', 1);
+        $body .= $this->paragraph('METHOD-P1 A quasi-experimental design was adopted across four rural schools.');
+        $body .= $this->paragraph('METHOD-P2 Participants were 312 senior secondary students in intact classrooms.');
+
+        $body .= $this->heading('Results', 1);
+        $body .= $this->paragraph('RESULTS-P1 Descriptive and inferential statistics are summarised in the table.');
+
+        $body .= $this->paragraph('Table 4. Achievement by group across terms');
+        $body .= $this->table([
+            ['Term', 'Scaffolded', 'Control'],
+            ['Term 1', '58.4', '52.1'],
+            ['Term 2', '66.9', '53.6'],
+        ], true);
+
+        $body .= $this->paragraph('RESULTS-P2 Figures 1 and 2 show the distributions behind those means.');
+        $body .= $this->paragraph('Figure 1. Term-on-term achievement gains by group');
+        $body .= $this->image('rId100', 610001, 'Achievement gains by group across two terms', 952500, 762000);
+        $body .= $this->paragraph('Figure 2. Range of final achievement scores');
+        $body .= $this->image('rId101', 610002, '', 1143000, 571500);
+        $body .= $this->paragraph('RESULTS-P3 The gap widened at follow-up, and variance narrowed in the scaffolded arm.');
+
+        $body .= $this->heading('Discussion', 1);
+        $body .= $this->paragraph('DISCUSSION-P1 The finding aligns with recent meta-analytic evidence (Belland et al., 2020).');
+
+        $body .= $this->heading('References', 1);
+        $body .= $this->paragraph('Belland, B. R., Walker, A. E., Kim, S., & Lefler, M. (2020). Synthesizing results from empirical '
+            .'research on computer-based scaffolding in K-12 education: A meta-analysis. Review of Educational Research, 90(4), 611-651.', ['hanging' => 720, 'left' => 720]);
+        $body .= $this->paragraph('Okonkwo, C. (2023). Rural classrooms and cognitive apprenticeship. Jos Journal of Education, 9(1), 12-30.', ['hanging' => 720, 'left' => 720]);
+
+        return $this->write($name, $body, $this->a4Section(1440), [
+            'word/media/image1.png' => $image,
+            'word/media/image2.png' => $image,
+        ], $this->mediaRelationships());
+    }
+
+    /**
+     * Test F image problems in one manuscript: one healthy PNG figure, one
+     * figure whose media part uses an unsupported extension (.heic), and one
+     * drawing whose relationship id does not exist at all. The pipeline must
+     * preserve all three positions and report each problem honestly.
+     */
+    public function regressionImageProblems(string $name = 'regression-f-image-problems.docx'): string
+    {
+        $image = base64_decode(self::PIXEL_PNG_BASE64);
+
+        $body = '';
+        $body .= $this->paragraph('Regression Test F Problem Figures', ['style' => 'Title']);
+        $body .= $this->paragraph('This manuscript exercises healthy, unsupported and broken figures in one document.');
+        $body .= $this->paragraph('Figure 1 below is healthy.');
+        $body .= $this->image('rId100', 620001, 'A healthy figure', 571500, 381000);
+        $body .= $this->paragraph('Figure 2 below carries an unsupported image format.');
+        $body .= $this->image('rId101', 620002, 'A HEIC figure the browser cannot show', 762000, 571500);
+        $body .= $this->paragraph('Figure 3 below references a relationship id that does not exist.');
+        $body .= $this->image('rId999', 620003, 'A drawing with no relationship', 762000, 571500);
+        $body .= $this->paragraph('Closing paragraph, placed after all three problem figures.');
+
+        return $this->write($name, $body, $this->a4Section(1440), [
+            'word/media/image1.png' => $image,
+            // The .heic part EXISTS and its relationship DOES point at it:
+            // nothing is missing except display support.
+            'word/media/image2.heic' => base64_decode('aGVpYy1pZ25vcmVkLWJ5dGVz'), // "heic-ignored-bytes"
+        ],
+            // Custom relationships: rId100 → the healthy PNG, rId101 → the
+            // HEIC part, and rId999 deliberately declared by NOBODY — the
+            // drawing that references it is a genuinely broken reference.
+            '<Relationship Id="rId100" '
+            .'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" '
+            .'Target="media/image1.png"/>'
+            .'<Relationship Id="rId101" '
+            .'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" '
+            .'Target="media/image2.heic"/>',
+            '<Default Extension="heic" ContentType="image/heic"/>');
+    }
+
+
     private function run(string $text, string $runProperties = ''): string
     {
         $prefix = $runProperties === '' ? '' : '<w:rPr>'.$runProperties.'</w:rPr>';

@@ -22,6 +22,17 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SecurityHeadersMiddleware::class,
         ]);
 
+        // Corrective Module 6: the manuscript workspace save and tracked
+        // change endpoints carry the author's content itself. The framework's
+        // global string trimming erased run-boundary spaces there ("x" + "2"
+        // + " and " collapsed into "x2and"), silently corrupting the text on
+        // every save. Exempt those two payload-carrier endpoints; every other
+        // endpoint keeps standard trimming.
+        $middleware->trimStrings(except: [
+            fn ($request) => $request->is('workspace/submissions/*/save'),
+            fn ($request) => $request->is('workspace/submissions/*/changes'),
+        ]);
+
         $middleware->validateCsrfTokens(except: [
             'webhooks/paystack',
         ]);
