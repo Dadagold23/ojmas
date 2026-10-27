@@ -27,6 +27,7 @@
                     <li class="mb-1"><a href="{{ route('editorial.advisers') }}" class="text-decoration-none text-light">Editorial Advisers</a></li>
                     <li class="mb-1"><a href="{{ route('scope.policies') }}" class="text-decoration-none text-light">Scope & Policies</a></li>
                     <li class="mb-1"><a href="{{ route('call.for.papers') }}" class="text-decoration-none text-light">Call for Papers</a></li>
+                    <li class="mb-1"><a href="{{ route('announcements') }}" class="text-decoration-none text-light">Announcements</a></li>
                     <li class="mb-1"><a href="{{ route('archives') }}" class="text-decoration-none text-light">Archives</a></li>
                     <li class="mb-1"><a href="{{ route('guidelines') }}" class="text-decoration-none text-light">Guidelines</a></li>
                     <li><a href="{{ route('contact') }}" class="text-decoration-none text-light">Contact</a></li>

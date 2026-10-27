@@ -354,7 +354,9 @@
         {{-- Optional consent-first subscribe control (Addendum M3). --}}
         <div class="push-control border-top bg-light py-2" data-push-control
              data-push-subscribe-url="{{ route('push.subscribe') }}"
-             data-push-unsubscribe-url="{{ route('push.unsubscribe') }}">
+             data-push-unsubscribe-url="{{ route('push.unsubscribe') }}"
+             data-push-preferences-url="{{ route('push.preferences') }}"
+             data-push-preferences-state-url="{{ route('push.preferences.state') }}">
             <div class="container d-flex flex-wrap align-items-center gap-2">
                 <i class="bi bi-bell text-primary"></i>
                 <span class="small fw-semibold">Subscribe to Journal Updates</span>
@@ -364,8 +366,13 @@
                         data-push-subscribe>Subscribe</button>
                 <button type="button" class="btn btn-sm btn-outline-secondary"
                         data-push-unsubscribe hidden>Unsubscribe</button>
+                @auth
+                    <button type="button" class="btn btn-sm btn-outline-dark"
+                            data-push-preferences hidden>Preferences</button>
+                @endauth
 
                 <span class="small text-muted" data-push-status></span>
+                <a href="{{ route('announcements') }}" class="small ms-auto">Announcements</a>
             </div>
 
             <div class="container" data-push-prompt hidden>
@@ -380,6 +387,24 @@
                     Also send me promotional / sponsored notifications
                 </label>
             </div>
+
+            @auth
+                <div class="container" data-push-prefs-panel hidden>
+                    <div class="d-flex flex-wrap align-items-center gap-3 small border rounded-3 p-2 mt-1 mb-2">
+                        <span class="fw-semibold">Notification preferences</span>
+                        <label class="d-inline-flex align-items-center gap-2">
+                            <input type="checkbox" class="form-check-input mt-0" data-push-pref-editorial>
+                            Journal updates
+                        </label>
+                        <label class="d-inline-flex align-items-center gap-2">
+                            <input type="checkbox" class="form-check-input mt-0" data-push-pref-promotions>
+                            Promotional / sponsored
+                        </label>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-push-pref-save>Save preferences</button>
+                        <span class="text-muted" data-push-pref-status></span>
+                    </div>
+                </div>
+            @endauth
         </div>
 
         <script src="{{ asset('js/push-subscribe.js') }}"></script>

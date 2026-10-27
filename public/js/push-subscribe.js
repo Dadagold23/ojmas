@@ -20,6 +20,12 @@
     var promotionalToggle = container.querySelector('[data-push-promotions]');
     var statusLine = container.querySelector('[data-push-status]');
     var promptPanel = container.querySelector('[data-push-prompt]');
+    var preferencesButton = container.querySelector('[data-push-preferences]');
+    var preferencesPanel = container.querySelector('[data-push-prefs-panel]');
+    var prefEditorial = container.querySelector('[data-push-pref-editorial]');
+    var prefPromotions = container.querySelector('[data-push-pref-promotions]');
+    var prefSave = container.querySelector('[data-push-pref-save]');
+    var prefStatus = container.querySelector('[data-push-pref-status]');
 
     var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
 
@@ -42,7 +48,7 @@
       if (statusLine) {
         statusLine.textContent =
           'Push notifications aren\u2019t available in this browser. '
-          + 'Announcements are always available on the site: see Calls for Papers and the Announcements page.';
+          + 'Announcements are always available on the site: see the Announcements page linked in the footer.';
       }
     }
 
@@ -95,7 +101,70 @@
     function refreshButtons(hasSubscription) {
       if (subscribeButton) subscribeButton.hidden = hasSubscription;
       if (unsubscribeButton) unsubscribeButton.hidden = !hasSubscription;
+      // The preferences control exists only for signed-in visitors (§3.4).
+      if (preferencesButton) preferencesButton.hidden = !hasSubscription;
+      if (!hasSubscription && preferencesPanel) preferencesPanel.hidden = true;
       if (promptPanel) promptPanel.hidden = true;
+    }
+
+    /* Signed-in subscribers can change what they receive; the server only
+       answers for the caller's own subscription and claims an anonymous row
+       on first use. */
+    function currentEndpoint() {
+      return currentSubscription().then(function (subscription) {
+        if (!subscription) throw new Error('no subscription');
+        return subscription.endpoint;
+      });
+    }
+
+    function loadPreferences() {
+      return currentEndpoint()
+        .then(function (endpoint) {
+          return post(container.getAttribute('data-push-preferences-state-url'), { endpoint: endpoint });
+        })
+        .then(function (response) {
+          if (!response.ok) throw new Error('preferences unavailable');
+          return response.json();
+        })
+        .then(function (state) {
+          if (prefEditorial) prefEditorial.checked = Boolean(state.wants_editorial);
+          if (prefPromotions) prefPromotions.checked = Boolean(state.wants_promotions);
+          if (prefStatus) prefStatus.textContent = '';
+          if (preferencesPanel) preferencesPanel.hidden = false;
+        });
+    }
+
+    if (preferencesButton && preferencesPanel) {
+      preferencesButton.addEventListener('click', function () {
+        if (!preferencesPanel.hidden) {
+          preferencesPanel.hidden = true;
+          return;
+        }
+
+        loadPreferences().catch(function () {
+          if (prefStatus) prefStatus.textContent = 'Could not load your saved preferences.';
+        });
+      });
+    }
+
+    if (prefSave) {
+      prefSave.addEventListener('click', function () {
+        currentEndpoint()
+          .then(function (endpoint) {
+            return post(container.getAttribute('data-push-preferences-url'), {
+              endpoint: endpoint,
+              wants_editorial: Boolean(prefEditorial && prefEditorial.checked),
+              wants_promotions: Boolean(prefPromotions && prefPromotions.checked)
+            });
+          })
+          .then(function (response) {
+            if (!response || !response.ok) throw new Error('save failed');
+            if (prefStatus) prefStatus.textContent = 'Preferences saved.';
+          })
+          .catch(function () {
+            if (prefStatus) prefStatus.textContent = 'Preferences were not saved. Try again.';
+          });
+      });
     }
 
     /* Initial state: read the browser's own subscription state. */

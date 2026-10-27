@@ -158,3 +158,60 @@ Module 2's role boundaries):
 3. `notify_push` on advertising campaigns (Module 2) is not yet auto-fed into
    the composer — the composer currently links a campaign manually. Module 4
    analytics will consume the `ad_campaign_id` linkage recorded here.
+
+## 9. Completion pass (2026-10-27)
+
+Gap-closing after the implementation-status review. No schema changes and no
+new dependencies.
+
+### Fixed
+
+1. **Retry/resume now actually dispatches.** The scheduler skipped any
+   notification whose delivery rows already existed, so the admin "Queue a
+   retry" action and recovery after an interrupted send never sent anything.
+   `push:dispatch` now distinguishes *staging* (new rows) from *retryable work*
+   (pending rows and failed rows under `push.max_attempts`) and resumes the
+   latter. This makes §6's resume claim true rather than aspirational.
+2. **Truthful terminal status.** `PushDispatchService::settle()` derives
+   `sent` / `failed` / `sending` from the stored deliveries instead of the
+   current run's counters, so an exhausted retry can no longer relabel an
+   all-failed notification as `sent`. `sent_at` is written only when the push
+   service accepted at least one delivery.
+3. **Admin retry restores the attempt budget.** Retrying a failed notification
+   resets the attempts of its failed deliveries (accepted rows untouched; the
+   audit row records how many were restored), so the button is not a no-op
+   once the limit is reached.
+4. **No stuck queue entries, no double-pick.** A notification with no eligible
+   subscribers returns to `draft`; a notification whose attempts are spent is
+   settled to its real terminal state. `last_dispatch_at` is stamped when a
+   run starts or a job is handed to the queue, and only a `sending` row older
+   than ten minutes is resumed — a concurrent cron pass cannot pick the same
+   notification again, and a dead worker is recovered after that window.
+5. **Subscription preferences are wired (§3.4/§3.6).** The previously dead
+   `preferences()` action now has owner-only routes (`push.preferences`,
+   `push.preferences.state`). The endpoint is the ownership proof; an anonymous
+   row is claimed by the first signed-in account that manages it, and any other
+   account receives 404 — never a hint that someone else's row exists. Signed-in
+   subscribers get a Preferences panel in the existing push control; promotions
+   remain opt-in and are never defaulted on.
+6. **In-site announcement centre (§3.4 fallback).** `/announcements` lists sent,
+   non-expired notifications for public audiences only (`all`, `editorial`,
+   `promotions`); role-targeted internal notices never appear. It is linked from
+   the footer and is what the unsupported-browser message now points to.
+
+### Verification
+
+- `tests/Feature/Addendum/Module3WebPushTest.php` — 23 tests, 98 assertions
+  (6 new: cron resume, exhausted-send settling, no false "sent", admin retry
+  budget, owner-only preferences with anonymous claim, public-only
+  announcements).
+- Full application suite: **OK (462 tests, 2401 assertions)**.
+- Smoke check on the local app: `/announcements` returns 200 with the heading,
+  footer link and push-control preferences URL rendered.
+
+### Remaining limits
+
+- The ten-minute stale window is the recovery bound if a queue worker dies
+  mid-send; the next cron pass after the window resumes the delivery.
+- The announcement centre mirrors pushed content. There is still no separate
+  announcement authoring surface outside the push composer.

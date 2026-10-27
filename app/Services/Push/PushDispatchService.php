@@ -188,9 +188,39 @@ class PushDispatchService
             }
         }
 
-        // Terminal status reflects the recorded deliveries, not just this
-        // run's counters: pending work keeps it in flight; otherwise it is
-        // honest about whether anything was accepted at all.
+        $this->settle($notification);
+
+        return [
+            'sent' => $sent,
+            'failed' => $failedCount,
+            'disabled' => $disabled,
+            'deliveries' => $deliveries->count(),
+        ];
+    }
+
+    /**
+     * Work a further dispatch attempt can still perform: pending rows and
+     * failed rows that have not reached the global attempt limit. This is
+     * what lets the scheduler resume an interrupted send instead of skipping
+     * a notification merely because its delivery rows already exist.
+     */
+    public function retryableDeliveries(PushNotification $notification): int
+    {
+        return PushDelivery::query()
+            ->where('notification_id', $notification->id)
+            ->whereIn('status', [PushDelivery::PENDING, PushDelivery::FAILED])
+            ->where('attempts', '<', (int) config('push.max_attempts', 3))
+            ->count();
+    }
+
+    /**
+     * Records the truthful terminal state from what is stored, not from this
+     * run's counters: a re-run that had nothing left to do must never turn an
+     * all-failed notification into a "sent" one, and sent_at is only set when
+     * the push service actually accepted at least one delivery.
+     */
+    public function settle(PushNotification $notification): string
+    {
         $sentDeliveries = PushDelivery::query()
             ->where('notification_id', $notification->id)
             ->where('status', PushDelivery::SENT)
@@ -205,24 +235,18 @@ class PushDispatchService
             $status = 'sending';
         } elseif ($sentDeliveries > 0) {
             $status = 'sent';
-        } elseif ($failedCount > 0) {
-            $status = 'failed';
         } else {
-            $status = 'sent';
+            // Either every delivery failed, or nothing was ever staged.
+            $status = 'failed';
         }
 
         $notification->update([
             'status' => $status,
-            'sent_at' => $pendingDeliveries > 0 ? $notification->sent_at : now(),
+            'sent_at' => $status === 'sent' ? ($notification->sent_at ?? now()) : $notification->sent_at,
             'dispatch_attempts' => $notification->dispatch_attempts + 1,
         ]);
 
-        return [
-            'sent' => $sent,
-            'failed' => $failedCount,
-            'disabled' => $disabled,
-            'deliveries' => $deliveries->count(),
-        ];
+        return $status;
     }
 
     /**

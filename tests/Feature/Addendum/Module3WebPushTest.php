@@ -313,6 +313,190 @@ class Module3WebPushTest extends TestCase
         Queue::assertPushed(DispatchPushNotification::class, 1);
     }
 
+    /* ─────────────── resuming interrupted sends (§3.5) ─────────────── */
+
+    public function test_cron_resumes_a_failed_send_and_still_honours_the_attempt_limit(): void
+    {
+        $item = $this->subscription();
+
+        $notification = $this->notification([
+            'status' => 'scheduled',
+            'scheduled_at' => now()->subMinute(),
+        ]);
+
+        // One stub carries the whole sequence: the first run is rejected with
+        // a server error, the resumed run is accepted.
+        $service = new class($this->stubWebPush(500, 201)) extends PushDispatchService {
+            public function __construct(private WebPush $stub) {}
+
+            public function dispatch(PushNotification $notification, ?WebPush $webPush = null): array
+            {
+                return parent::dispatch($notification, $webPush ?? $this->stub);
+            }
+        };
+        $this->instance(PushDispatchService::class, $service);
+
+        $this->artisan('push:dispatch')->assertSuccessful();
+
+        $delivery = PushDelivery::where('notification_id', $notification->id)
+            ->where('subscription_id', $item->id)->firstOrFail();
+
+        $this->assertSame(PushDelivery::FAILED, $delivery->status);
+        $this->assertSame('failed', $notification->fresh()->status);
+        $this->assertNull($notification->fresh()->sent_at);
+
+        // Its delivery rows already exist, so only the retry-aware scheduler
+        // can resume it (the old code skipped any notification with rows).
+        $notification->refresh()->update(['status' => 'scheduled', 'scheduled_at' => now()]);
+
+        $this->artisan('push:dispatch')->assertSuccessful();
+
+        $delivery->refresh();
+        $this->assertSame(PushDelivery::SENT, $delivery->status);
+        $this->assertSame(2, $delivery->attempts);
+        $this->assertSame('sent', $notification->fresh()->status);
+        $this->assertNotNull($notification->fresh()->sent_at);
+    }
+
+    public function test_cron_settles_an_exhausted_scheduled_notification_instead_of_leaving_it_queued(): void
+    {
+        $this->subscription();
+        $notification = $this->notification();
+        $service = app(PushDispatchService::class);
+
+        $service->stageDeliveries($notification);
+        for ($i = 0; $i < 3; $i++) {
+            $service->dispatch($notification->fresh(), $this->stubWebPush(500));
+        }
+
+        $notification->update(['status' => 'scheduled', 'scheduled_at' => now()]);
+
+        $this->artisan('push:dispatch')->assertSuccessful();
+
+        $this->assertSame('failed', $notification->fresh()->status);
+    }
+
+    public function test_an_exhausted_retry_never_relabels_the_notification_as_sent(): void
+    {
+        $this->subscription();
+        $notification = $this->notification();
+        $service = app(PushDispatchService::class);
+
+        $service->stageDeliveries($notification);
+        for ($i = 0; $i < 3; $i++) {
+            $service->dispatch($notification->fresh(), $this->stubWebPush(500));
+        }
+
+        $this->assertSame('failed', $notification->fresh()->status);
+
+        $result = $service->dispatch($notification->fresh(), $this->stubWebPush(201));
+
+        $this->assertSame(0, $result['sent']);
+        $this->assertSame('failed', $notification->fresh()->status);
+        $this->assertNull($notification->fresh()->sent_at);
+    }
+
+    public function test_an_admin_retry_restores_the_attempt_budget_of_failed_deliveries(): void
+    {
+        $this->subscription();
+        $notification = $this->notification();
+        $service = app(PushDispatchService::class);
+
+        $service->stageDeliveries($notification);
+        for ($i = 0; $i < 3; $i++) {
+            $service->dispatch($notification->fresh(), $this->stubWebPush(500));
+        }
+
+        $delivery = PushDelivery::where('notification_id', $notification->id)->firstOrFail();
+        $this->assertSame(3, $delivery->attempts);
+        $this->assertSame('failed', $notification->fresh()->status);
+
+        $this->actingAs($this->userWithRole('Admin'))
+            ->post(route('admin.push.retry', $notification))
+            ->assertRedirect();
+
+        $this->assertSame(0, $delivery->fresh()->attempts);
+        $this->assertSame('scheduled', $notification->fresh()->status);
+        $this->assertTrue(AuditLog::where('event', 'push.notification.retry_queued')->exists());
+    }
+
+    /* ─────────────── consent preferences (§3.4/§3.6) ─────────────── */
+
+    public function test_preferences_are_owner_only_and_claim_an_anonymous_subscription(): void
+    {
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
+
+        $endpoint = 'https://fcm.googleapis.com/fcm/send/pref-owner';
+        $this->subscription(['endpoint' => $endpoint]); // subscribed before signing in
+
+        $this->postJson(route('push.preferences'), [
+            'endpoint' => $endpoint,
+            'wants_editorial' => false,
+            'wants_promotions' => true,
+        ])->assertUnauthorized();
+
+        $this->actingAs($owner)
+            ->postJson(route('push.preferences'), [
+                'endpoint' => $endpoint,
+                'wants_editorial' => false,
+                'wants_promotions' => true,
+            ])
+            ->assertOk()
+            ->assertJson(['ok' => true]);
+
+        $record = PushSubscription::where('endpoint_hash', hash('sha256', $endpoint))->firstOrFail();
+        $this->assertSame($owner->id, $record->user_id); // claimed on first use
+        $this->assertFalse($record->wants_editorial);
+        $this->assertTrue($record->wants_promotions);
+
+        $this->actingAs($other)
+            ->postJson(route('push.preferences.state'), ['endpoint' => $endpoint])
+            ->assertNotFound();
+
+        $this->actingAs($owner)
+            ->postJson(route('push.preferences.state'), ['endpoint' => $endpoint])
+            ->assertOk()
+            ->assertJson(['wants_editorial' => false, 'wants_promotions' => true]);
+    }
+
+    /* ─────────────── in-site announcement centre (§3.4 fallback) ─────────────── */
+
+    public function test_the_announcements_page_shows_only_public_sent_notifications(): void
+    {
+        $public = $this->notification([
+            'title' => 'Public volume announcement',
+            'status' => 'sent',
+            'sent_at' => now()->subHour(),
+        ]);
+        $internal = $this->notification([
+            'title' => 'Internal editors notice',
+            'audience' => 'editors',
+            'status' => 'sent',
+            'sent_at' => now()->subHour(),
+        ]);
+        $expired = $this->notification([
+            'title' => 'Expired announcement',
+            'status' => 'sent',
+            'sent_at' => now()->subDay(),
+            'expires_at' => now()->subHour(),
+        ]);
+        $draft = $this->notification([
+            'title' => 'Draft announcement',
+            'status' => 'draft',
+        ]);
+
+        $response = $this->get(route('announcements'));
+
+        $response->assertOk()
+            ->assertSee($public->title)
+            ->assertDontSee($internal->title)
+            ->assertDontSee($expired->title)
+            ->assertDontSee($draft->title);
+
+        $this->assertSame(1, $response->viewData('announcements')->total());
+    }
+
     /* ─────────────── composer, authorisation and reporting (§3.3) ─────────────── */
 
     public function test_notification_creation_endpoints_are_role_and_permission_gated(): void

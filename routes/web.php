@@ -70,6 +70,16 @@ Route::get('/ads/{campaign}/click',    [\App\Http\Controllers\AdPublicController
 Route::post('/push/subscribe',   [\App\Http\Controllers\PushSubscriptionController::class, 'subscribe'])->middleware('throttle:30,1')->name('push.subscribe');
 Route::post('/push/unsubscribe', [\App\Http\Controllers\PushSubscriptionController::class, 'unsubscribe'])->middleware('throttle:30,1')->name('push.unsubscribe');
 
+// In-site announcement centre: the same journal news push carries, for
+// visitors whose browser cannot (or will not) receive notifications.
+Route::get('/announcements', [\App\Http\Controllers\AnnouncementController::class, 'index'])->name('announcements');
+
+// Consent preferences belong to the signed-in owner of the subscription.
+Route::middleware('auth')->prefix('push')->name('push.')->group(function () {
+    Route::post('/preferences',       [\App\Http\Controllers\PushSubscriptionController::class, 'preferences'])->middleware('throttle:30,1')->name('preferences');
+    Route::post('/preferences/state', [\App\Http\Controllers\PushSubscriptionController::class, 'preferencesState'])->middleware('throttle:60,1')->name('preferences.state');
+});
+
 // ─── Auth routes ──────────────────────────────────────────────────────────────
 require __DIR__.'/auth.php';
 

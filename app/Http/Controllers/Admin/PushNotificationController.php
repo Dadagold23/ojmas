@@ -117,8 +117,9 @@ class PushNotificationController extends Controller
         }
 
         // Immediate dispatch: staged then handed to the queue (sync driver
-        // runs inline so no dependency on the unverified worker).
-        $notification->update(['status' => 'sending']);
+        // runs inline so no dependency on the unverified worker). The stamp
+        // keeps the cron from resuming a run that is only just queued.
+        $notification->update(['status' => 'sending', 'last_dispatch_at' => now()]);
 
         if (config('push.queue')) {
             DispatchPushNotification::dispatch($notification->fresh());
@@ -163,15 +164,25 @@ class PushNotificationController extends Controller
     {
         Gate::authorize('push.manage');
 
+        // An explicit administrator retry restores the attempt budget of the
+        // deliveries that failed; accepted rows are never touched, and the
+        // last error stays visible until the next attempt replaces it.
+        $reset = PushDelivery::query()
+            ->where('notification_id', $notification->id)
+            ->where('status', PushDelivery::FAILED)
+            ->update(['attempts' => 0]);
+
         $notification->update([
             'status' => 'scheduled',
             'scheduled_at' => now(), // due immediately
         ]);
 
-        $this->audit($request, $notification, 'push.notification.retry_queued');
+        $this->audit($request, $notification, 'push.notification.retry_queued', [
+            'retried_deliveries' => $reset,
+        ]);
 
         return redirect()->route('admin.push.show', $notification)
-            ->with('success', 'Marked for immediate retry; run push:dispatch (crons and retries share the same dedupe).');
+            ->with('success', 'Queued for the next push:dispatch run; failed deliveries have their attempt budget restored.');
     }
 
     /* ── delivery report + preview ── */
@@ -324,7 +335,7 @@ class PushNotificationController extends Controller
 
     private function sendNowFromStore(PushNotification $notification)
     {
-        $notification->update(['status' => 'sending']);
+        $notification->update(['status' => 'sending', 'last_dispatch_at' => now()]);
 
         if (config('push.queue')) {
             if ($staged = $this->push->stageDeliveries($notification->fresh())) {

@@ -29,33 +29,57 @@ class PushDispatchCommand extends Command
                 ->get();
         } else {
             $notifications = PushNotification::query()
-                ->where('status', 'sending')
-                ->orWhere(function ($query) {
-                    $query->where('status', 'scheduled')
-                        ->where(function ($due) {
-                            $due->whereNull('scheduled_at')
-                                ->orWhere('scheduled_at', '<=', now());
-                        })
-                        ->where(function ($notExpired) {
-                            $notExpired->whereNull('expires_at')
-                                ->orWhere('expires_at', '>', now());
-                        });
+                ->where(function ($query) {
+                    $query->where(function ($due) {
+                        $due->where('status', 'scheduled')
+                            ->where(function ($ready) {
+                                $ready->whereNull('scheduled_at')
+                                    ->orWhere('scheduled_at', '<=', now());
+                            })
+                            ->where(function ($notExpired) {
+                                $notExpired->whereNull('expires_at')
+                                    ->orWhere('expires_at', '>', now());
+                            });
+                    })->orWhere(function ($stale) {
+                        // A send whose worker died or restarted is resumed, but
+                        // never while a live dispatch may still be running: the
+                        // service stamps last_dispatch_at when it starts (and
+                        // when a job is handed to the queue).
+                        $stale->where('status', 'sending')
+                            ->where(function ($old) {
+                                $old->whereNull('last_dispatch_at')
+                                    ->orWhere('last_dispatch_at', '<', now()->subMinutes(10));
+                            });
+                    });
                 })
                 ->get();
         }
 
         foreach ($notifications as $notification) {
             $staged = $service->stageDeliveries($notification);
+            $retryable = $service->retryableDeliveries($notification);
 
-            if ($staged === 0) {
-                $this->line("[{$notification->id}] no eligible subscriptions (or its category is not push-eligible): {$notification->title}");
+            if ($staged === 0 && $retryable === 0) {
+                if ($notification->deliveries()->exists()) {
+                    // Every attempt is spent or already accepted: record the
+                    // truthful terminal state instead of re-queueing forever.
+                    $service->settle($notification);
+                    $this->line("[{$notification->id}] nothing left to send: {$notification->title}");
+                } else {
+                    // Nothing was ever staged — no eligible subscribers or the
+                    // category is not push-eligible. Return it to the admin.
+                    $notification->update(['status' => 'draft']);
+                    $this->line("[{$notification->id}] no eligible subscriptions (or its category is not push-eligible); returned to draft: {$notification->title}");
+                }
 
-                // The notification was queued to its full audience once before
-                // — it must not be re-staged forever, nor left 'sending'.
                 continue;
             }
 
-            $this->line("[{$notification->id}] staging {$staged} delivery(-ies): {$notification->title}");
+            $this->line("[{$notification->id}] staging {$staged} delivery(-ies), {$retryable} retryable: {$notification->title}");
+
+            // Mark the run before handing it off so a concurrent cron pass can
+            // never pick the same notification twice.
+            $notification->update(['status' => 'sending', 'last_dispatch_at' => now()]);
 
             if (config('push.queue')) {
                 DispatchPushNotification::dispatch($notification->fresh());
@@ -64,7 +88,6 @@ class PushDispatchCommand extends Command
             } else {
                 // Sync path: the job's work is done directly so the same
                 // guarantee applies without a worker.
-                $notification->fresh()->update(['status' => 'sending']);
                 $result = $service->dispatch($notification->fresh());
 
                 $this->line("[{$notification->id}] sent {$result['sent']}, failed {$result['failed']}, disabled {$result['disabled']}.");

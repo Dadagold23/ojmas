@@ -61,33 +61,70 @@ class PushSubscriptionController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    /**
+     * Consent state for the signed-in owner's own subscription (§3.4/§3.6).
+     * The endpoint itself is the ownership proof: only the browser holding
+     * the subscription knows it, and a matching anonymous row is claimed on
+     * first use so a visitor who subscribed before signing in can still
+     * manage what they receive.
+     */
+    public function preferencesState(Request $request)
+    {
+        $subscription = $this->ownedSubscription($request);
+
+        return response()->json([
+            'wants_editorial' => $subscription->wants_editorial,
+            'wants_promotions' => $subscription->wants_promotions,
+        ]);
+    }
+
     public function preferences(Request $request)
     {
-        if ($request->user() === null) {
-            return redirect()->route('login');
-        }
+        $subscription = $this->ownedSubscription($request);
 
         $validated = $request->validate([
-            'endpoint_hash' => ['required', 'string', 'size:64'],
             'wants_editorial' => ['required', 'boolean'],
             'wants_promotions' => ['required', 'boolean'],
         ]);
-
-        $subscription = PushSubscription::query()
-            ->where('user_id', $request->user()->id)
-            ->where('endpoint_hash', $validated['endpoint_hash'])
-            ->first();
-
-        if ($subscription === null) {
-            abort(404);
-        }
 
         $subscription->update([
             'wants_editorial' => (bool) $validated['wants_editorial'],
             'wants_promotions' => (bool) $validated['wants_promotions'],
         ]);
 
-        return back()->with('success', 'Notification preferences saved.');
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Resolves the caller's own subscription from the endpoint they present.
+     * Another account's endpoint answers 404 exactly like a missing one, so
+     * the response never reveals whether someone else's row exists.
+     */
+    private function ownedSubscription(Request $request): PushSubscription
+    {
+        abort_if($request->user() === null, 403);
+
+        $validated = $request->validate([
+            'endpoint' => ['required', 'string', 'max:1000', 'url'],
+        ]);
+
+        $this->assertWebPushEndpoint($validated['endpoint']);
+
+        $subscription = PushSubscription::query()
+            ->where('endpoint_hash', hash('sha256', $validated['endpoint']))
+            ->first();
+
+        abort_if($subscription === null, 404);
+        abort_if(
+            $subscription->user_id !== null && $subscription->user_id !== $request->user()->getKey(),
+            404
+        );
+
+        if ($subscription->user_id === null) {
+            $subscription->update(['user_id' => $request->user()->getKey()]);
+        }
+
+        return $subscription;
     }
 
     private function validateSubscription(Request $request): array
@@ -100,12 +137,7 @@ class PushSubscriptionController extends Controller
 
         // Endpoints pushed to must be plain web push endpoints — anything
         // else (javascript:, data:, file:) is refused outright.
-        $scheme = strtolower((string) parse_url($validated['endpoint'], PHP_URL_SCHEME));
-        if (! in_array($scheme, ['http', 'https'], true)) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'endpoint' => 'Only http(s) subscription endpoints are accepted.',
-            ]);
-        }
+        $this->assertWebPushEndpoint($validated['endpoint']);
 
         $p256dh = Str::of($validated['p256dh'])->replace(' ', '');
         $auth = Str::of($validated['auth'])->replace(' ', '');
@@ -116,6 +148,17 @@ class PushSubscriptionController extends Controller
         }
 
         return $validated;
+    }
+
+    private function assertWebPushEndpoint(string $endpoint): void
+    {
+        $scheme = strtolower((string) parse_url($endpoint, PHP_URL_SCHEME));
+
+        if (! in_array($scheme, ['http', 'https'], true)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'endpoint' => 'Only http(s) subscription endpoints are accepted.',
+            ]);
+        }
     }
 
     private function refuseInsecureOrigin(Request $request): bool

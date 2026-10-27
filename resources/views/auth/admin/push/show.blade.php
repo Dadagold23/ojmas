@@ -194,12 +194,12 @@
                             </form>
                         @endunless
 
-                        @unless($notification->status === 'draft')
+                        @if($notification->status === 'failed')
                             <form method="POST" action="{{ route('admin.push.retry', $notification) }}">
                                 @csrf
                                 <button type="submit" class="btn btn-outline-primary btn-sm">Queue a retry</button>
                             </form>
-                        @endunless
+                        @endif
                     </div>
                 </div>
             </div>
