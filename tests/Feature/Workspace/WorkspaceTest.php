@@ -958,6 +958,12 @@ class WorkspaceTest extends TestCase
     {
         [$submission, $workspace, , $author] = $this->workspaceFor('compliant', 'screening');
 
+        $this->actingAs($author)
+            ->get(route('workspace.show', $submission))
+            ->assertOk()
+            ->assertSee('data-can-edit="1"', false)
+            ->assertDontSee('id="editor-notice"', false);
+
         $this->actingAs($author)->post(route('workspace.save', $submission), [
             'content' => $this->tiptapDoc('Author edit during screening.'),
             'baseRevision' => $workspace->revision,
@@ -981,6 +987,12 @@ class WorkspaceTest extends TestCase
         [$submission, $workspace, , $author] = $this->workspaceFor('compliant', 'revision_requested');
 
         $submission->update(['decision_due_at' => now()->subDay()]);
+
+        $this->actingAs($author)
+            ->get(route('workspace.show', $submission))
+            ->assertOk()
+            ->assertSee('data-can-edit="0"', false)
+            ->assertSee('id="editor-notice"', false);
 
         $this->actingAs($author)->post(route('workspace.save', $submission), [
             'content' => $this->tiptapDoc('Late revision.'),
