@@ -954,6 +954,18 @@ class WorkspaceTest extends TestCase
         $this->assertStringNotContainsString('during review', (string) $workspace->fresh()->plain_text);
     }
 
+    public function test_an_author_may_edit_while_the_manuscript_is_screened(): void
+    {
+        [$submission, $workspace, , $author] = $this->workspaceFor('compliant', 'screening');
+
+        $this->actingAs($author)->post(route('workspace.save', $submission), [
+            'content' => $this->tiptapDoc('Author edit during screening.'),
+            'baseRevision' => $workspace->revision,
+        ])->assertOk();
+
+        $this->assertStringContainsString('during screening', (string) $workspace->fresh()->plain_text);
+    }
+
     public function test_an_author_may_edit_during_a_revision_window(): void
     {
         [$submission, $workspace, , $author] = $this->workspaceFor('compliant', 'revision_requested');
@@ -962,6 +974,20 @@ class WorkspaceTest extends TestCase
             'content' => $this->tiptapDoc('Revised abstract text.'),
             'baseRevision' => $workspace->revision,
         ])->assertOk();
+    }
+
+    public function test_an_author_cannot_edit_after_the_revision_window_closes(): void
+    {
+        [$submission, $workspace, , $author] = $this->workspaceFor('compliant', 'revision_requested');
+
+        $submission->update(['decision_due_at' => now()->subDay()]);
+
+        $this->actingAs($author)->post(route('workspace.save', $submission), [
+            'content' => $this->tiptapDoc('Late revision.'),
+            'baseRevision' => $workspace->revision,
+        ])->assertForbidden();
+
+        $this->assertStringNotContainsString('Late revision', (string) $workspace->fresh()->plain_text);
     }
 
     public function test_an_editor_may_edit_at_any_stage(): void

@@ -12,7 +12,8 @@ use App\Models\User;
  * Capability split
  * ----------------
  *  - **Read**: the author, co-authors, assigned reviewers and editorial staff.
- *  - **Edit**: editorial staff, and the author while a revision window is open.
+ *  - **Edit**: editorial staff, the author before peer review starts, and the
+ *    author while a revision window is open.
  *  - **Review changes**: editorial staff only. An author cannot accept or
  *    reject their own tracked changes.
  *  - **Restore a version**: editorial staff only.
@@ -43,10 +44,14 @@ class WorkspacePolicy
             return true;
         }
 
-        // An author may edit while a revision is being requested, and never
-        // while the manuscript is under or past peer review.
-        return $submission->author_id === $user->id
-            && in_array($submission->status, ['submitted', 'revision_requested'], true);
+        if ((int) $submission->author_id !== (int) $user->id) {
+            return false;
+        }
+
+        // The author may edit before peer review starts, and afterwards only
+        // while the requested revision window is actually open.
+        return in_array($submission->status, ['submitted', 'screening'], true)
+            || $submission->isRevisionWindowOpen();
     }
 
     public function comment(User $user, Submission $submission): bool

@@ -71,8 +71,8 @@
         @if(!$capabilities['canEdit'])
             <div class="alert alert-info rounded-4 py-2 small" id="editor-notice">
                 <i class="bi bi-eye me-1"></i>
-                You have read access to this manuscript. Editing is restricted to the editorial team and,
-                for the submitting author, while a revision is open.
+                You have read access to this manuscript. Editing is restricted to the editorial team; the
+                submitting author may edit until peer review begins and while a revision window is open.
             </div>
         @endif
 
