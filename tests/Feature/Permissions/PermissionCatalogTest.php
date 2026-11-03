@@ -5,9 +5,11 @@ namespace Tests\Feature\Permissions;
 use App\Services\Permissions\PermissionCatalog;
 use App\Services\Permissions\PermissionRegistrar;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar as SpatiePermissionRegistrar;
 use Tests\TestCase;
 
 /**
@@ -41,6 +43,31 @@ class PermissionCatalogTest extends TestCase
         // Nothing is ever revoked by a re-sync.
         $admin = Role::where('name', 'Admin')->first();
         $this->assertTrue($admin->hasPermissionTo('publication.publish'));
+    }
+
+    public function test_sync_grants_permissions_when_model_events_are_muted(): void
+    {
+        // DatabaseSeeder runs inside WithoutModelEvents, which suppresses the
+        // saved hook Spatie relies on to flush its permission cache. A sync
+        // that consults that cache while inserting permissions would leave an
+        // empty catalogue cached and every grant that follows would fail.
+        Permission::query()->delete();
+        app(SpatiePermissionRegistrar::class)->forgetCachedPermissions();
+
+        $result = Model::withoutEvents(fn () => $this->registrar->sync());
+
+        $this->assertSame(count(PermissionCatalog::names()), $result['created_permissions']);
+
+        foreach (PermissionCatalog::roleMatrix() as $roleName => $permissions) {
+            $role = Role::where('name', $roleName)->firstOrFail();
+
+            foreach ($permissions as $permission) {
+                $this->assertTrue(
+                    $role->hasPermissionTo($permission),
+                    sprintf('%s should hold %s after a muted-events sync.', $roleName, $permission),
+                );
+            }
+        }
     }
 
     public function test_every_user_in_the_database_keeps_their_access(): void

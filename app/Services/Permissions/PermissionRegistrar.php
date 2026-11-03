@@ -100,9 +100,17 @@ class PermissionRegistrar
                 continue;
             }
 
-            Permission::create(['name' => $name, 'guard_name' => 'web']);
+            // Deliberately bypass Permission::create(): that static helper loads
+            // the permission cache (looking for a duplicate) before inserting.
+            // DatabaseSeeder mutes model events, so Spatie's saved hook cannot
+            // flush that now-stale empty cache and the grants below would fail.
+            Permission::query()->create(['name' => $name, 'guard_name' => 'web']);
             $createdPermissions++;
         }
+
+        // Belt and braces for callers that seed with events muted: never grant
+        // from a cache populated before the permissions existed.
+        $this->forgetCache();
 
         foreach (PermissionCatalog::roleMatrix() as $roleName => $permissions) {
             $role = Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
