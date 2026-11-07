@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Services\Orcid\OrcidId;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreSubmissionRequest extends FormRequest
@@ -25,8 +26,10 @@ class StoreSubmissionRequest extends FormRequest
             'co_authors.*.email' => ['nullable', 'email', 'max:255'],
             'co_authors.*.institution' => ['nullable', 'string', 'max:255'],
             'co_authors.*.country' => ['nullable', 'string', 'max:100'],
+            // Co-author identifiers are optional metadata: an unparseable value
+            // is dropped at storage time rather than rejecting the manuscript.
             'co_authors.*.orcid' => ['nullable', 'string', 'max:39'],
-            'author_orcid' => ['nullable', 'string', 'max:39'],
+            'author_orcid' => ['nullable', 'string', 'max:39', $this->orcidRule()],
             'manuscript' => ['required', 'file', 'mimes:pdf,doc,docx', 'max:' . self::MAX_UPLOAD_KB],
             'cover_letter' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:' . self::MAX_UPLOAD_KB],
             'supplementary' => ['nullable', 'file', 'mimes:pdf,doc,docx,zip', 'max:' . self::MAX_UPLOAD_KB],
@@ -59,6 +62,15 @@ class StoreSubmissionRequest extends FormRequest
                 }
             },
         ];
+    }
+
+    private function orcidRule(): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail): void {
+            if (filled($value) && ! OrcidId::isWellFormed((string) $value)) {
+                $fail('Enter a valid ORCID iD, for example 0000-0002-1825-0097.');
+            }
+        };
     }
 
     private function friendlyUploadErrorMessage(string $label, int $errorCode): string

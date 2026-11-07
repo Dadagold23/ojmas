@@ -32,6 +32,11 @@
         </div>
     </div>
 
+    {{-- ORCID identity --}}
+    <div class="mb-4" data-aos="fade-up">
+        <x-orcid-connect :user="auth()->user()" compact />
+    </div>
+
     {{-- Stats --}}
     <div class="row g-3 mb-4" data-aos="fade-up">
         <div class="col-6 col-md-3">

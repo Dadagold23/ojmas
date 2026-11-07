@@ -239,6 +239,25 @@ class SubmissionPolicy
         return $user->can('settings.documents') || $user->hasRole('Super Admin');
     }
 
+    // ── ORCID integration ───────────────────────────────────────────────
+
+    /** Enabling ORCID and choosing production/sandbox is a settings change. */
+    public function manageOrcidSettings(User $user): bool
+    {
+        return $user->can('settings.manage') || $user->hasRole('Super Admin');
+    }
+
+    /**
+     * Releasing an incorrectly linked ORCID identity is account management.
+     *
+     * The ORCID client secret is never part of this screen, so holding this
+     * capability never implies access to the OAuth credentials themselves.
+     */
+    public function manageOrcidAccounts(User $user): bool
+    {
+        return $user->can('user.manage') || $user->hasRole('Super Admin');
+    }
+
     // ── Original submission lifecycle ───────────────────────────────────
 
     public function delete(User $user, Submission $submission): bool
@@ -254,6 +273,25 @@ class SubmissionPolicy
         // the production keys (§3.5). Admin keeps its historic publish
         // rights, which is the standing answer to deferred decision J7.
         return $user->can('publication.publish');
+    }
+
+    /**
+     * The corresponding author may open the approval screen once the
+     * manuscript is accepted. The screen shows the remaining checks honestly
+     * and keeps the form locked until they pass; recording the approval is a
+     * stricter permission (see approveProofs).
+     */
+    public function viewProofs(User $user, Submission $submission): bool
+    {
+        if ((int) $submission->author_id !== (int) $user->id) {
+            return false;
+        }
+
+        if (in_array($submission->current_stage, ['accepted', 'copyediting', 'proof_approval', 'published'], true)) {
+            return true;
+        }
+
+        return in_array($submission->status, ['accepted', 'published'], true);
     }
 
     /** The corresponding author signs off their proofs. */

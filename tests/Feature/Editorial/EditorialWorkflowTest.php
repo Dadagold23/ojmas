@@ -10,6 +10,7 @@ use App\Services\Permissions\PermissionRegistrar;
 use App\Services\Workflow\EditorialWorkflowService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -139,6 +140,37 @@ class EditorialWorkflowTest extends TestCase
 
         $this->assertFalse($result['ok']);
         $this->assertSame('proof_approval', $submission->fresh()->current_stage);
+    }
+
+    public function test_the_legacy_decision_endpoint_advances_the_stage_pointer(): void
+    {
+        Notification::fake();
+
+        $editor = User::factory()->create();
+        $editor->assignRole('Editor');
+
+        $submission = Submission::factory()->create(['status' => 'under_review']);
+        $submission->payments()->create([
+            'user_id' => $submission->author_id,
+            'purpose' => 'vetting_fee',
+            'reference' => 'VET-LEGACY-'.uniqid(),
+            'amount' => 10000,
+            'status' => 'paid',
+            'gateway' => 'paystack',
+            'paid_at' => now(),
+        ]);
+
+        $this->actingAs($editor)
+            ->post(route('editor.submissions.decision', $submission), [
+                'decision' => 'accepted',
+                'message' => 'Accepted after peer review.',
+            ])
+            ->assertRedirect();
+
+        $fresh = $submission->fresh();
+
+        $this->assertSame('accepted', $fresh->status);
+        $this->assertSame('accepted', $fresh->current_stage);
     }
 
     public function test_a_managing_editor_can_move_but_never_publish(): void

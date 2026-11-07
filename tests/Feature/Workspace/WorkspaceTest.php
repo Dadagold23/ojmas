@@ -3,6 +3,8 @@
 namespace Tests\Feature\Workspace;
 
 use App\Models\ManuscriptDocument;
+use App\Models\Payment;
+use App\Models\ReviewerAssignment;
 use App\Models\Submission;
 use App\Models\User;
 use App\Services\Documents\ManuscriptProcessingService;
@@ -96,7 +98,12 @@ class WorkspaceTest extends TestCase
             ->get(route('workspace.show', $submission))
             ->assertOk()
             ->assertSee('Manuscript workspace', false)
-            ->assertSee($submission->submission_no);
+            ->assertSee($submission->submission_no)
+            // The comment panel must render its form and the host the JS
+            // writes results to; without either the button looks inert.
+            ->assertSee('id="comment-body"', false)
+            ->assertSee('id="btn-comment-post"', false)
+            ->assertSee('id="workspace-toasts"', false);
     }
 
     public function test_the_workspace_document_is_imported_on_first_open(): void
@@ -912,15 +919,21 @@ class WorkspaceTest extends TestCase
         ])->assertForbidden();
     }
 
-    public function test_an_unassigned_reviewer_cannot_open_the_workspace(): void
+    public function test_an_unassigned_reviewer_cannot_open_or_edit_the_workspace(): void
     {
-        [$submission, , , $author] = $this->workspaceFor();
+        [$submission, $workspace, , $author] = $this->workspaceFor();
         $reviewer = $this->user('Reviewer');
 
         $this->actingAs($reviewer)->get(route('workspace.show', $submission))->assertForbidden();
+        $this->actingAs($reviewer)->post(route('workspace.save', $submission), [
+            'content' => $this->tiptapDoc('Unassigned reviewer edit.'),
+            'baseRevision' => $workspace->revision,
+        ])->assertForbidden();
+
+        $this->assertStringNotContainsString('Unassigned reviewer edit', (string) $workspace->fresh()->plain_text);
     }
 
-    public function test_an_assigned_reviewer_may_read_but_not_edit(): void
+    public function test_an_assigned_reviewer_may_read_and_edit_the_workspace(): void
     {
         [$submission, $workspace, , $author] = $this->workspaceFor();
         $reviewer = $this->user('Reviewer');
@@ -932,14 +945,105 @@ class WorkspaceTest extends TestCase
         ]);
 
         $this->actingAs($reviewer)->get(route('workspace.show', $submission))->assertOk();
-        $this->actingAs($reviewer)->get(route('workspace.document', $submission))->assertOk();
+        $this->actingAs($reviewer)->get(route('workspace.document', $submission))
+            ->assertOk()
+            ->assertJsonPath('canEdit', true);
 
         $this->actingAs($reviewer)->post(route('workspace.save', $submission), [
             'content' => $this->tiptapDoc('Reviewer edit.'),
             'baseRevision' => $workspace->revision,
+        ])->assertOk();
+
+        $this->assertStringContainsString('Reviewer edit', (string) $workspace->fresh()->plain_text);
+    }
+
+    public function test_the_reviewer_assignment_screen_opens_the_workspace_instead_of_only_offering_a_download(): void
+    {
+        [$submission] = $this->workspaceFor();
+        $reviewer = $this->user('Reviewer');
+
+        $assignment = ReviewerAssignment::create([
+            'submission_id' => $submission->id,
+            'reviewer_id' => $reviewer->id,
+            'status' => 'assigned',
+        ]);
+
+        Payment::create([
+            'user_id' => $reviewer->id,
+            'submission_id' => $submission->id,
+            'reference' => 'VET-'.$submission->id,
+            'purpose' => 'vetting_fee',
+            'amount' => 5000,
+            'status' => 'paid',
+            'paid_at' => now(),
+        ]);
+
+        // The assignment page still offers downloads, but the reviewer no
+        // longer has to download the manuscript to read and annotate it.
+        $this->actingAs($reviewer)
+            ->get(route('reviewer.assignments.show', $assignment))
+            ->assertOk()
+            ->assertSee(route('workspace.show', $submission), false)
+            ->assertSee('Open Workspace')
+            ->assertSee('read and annotate it in the workspace');
+
+        $this->actingAs($reviewer)
+            ->get(route('workspace.show', $submission))
+            ->assertOk();
+    }
+
+    public function test_a_reviewer_may_edit_but_may_not_review_changes_or_force_a_save(): void
+    {
+        [$submission, $workspace, , $author] = $this->workspaceFor();
+        $reviewer = $this->user('Reviewer');
+
+        \App\Models\ReviewerAssignment::create([
+            'submission_id' => $submission->id,
+            'reviewer_id' => $reviewer->id,
+            'status' => 'assigned',
+        ]);
+
+        // Accepting or rejecting tracked changes remains an editorial act.
+        $this->actingAs($reviewer)->postJson(route('workspace.changes.resolve', $submission), [
+            'changeUid' => 'any-change',
+            'decision' => 'accepted',
         ])->assertForbidden();
 
-        $this->assertStringNotContainsString('Reviewer edit', (string) $workspace->fresh()->plain_text);
+        // Overriding a concurrent save is still staff-only.
+        $this->actingAs($reviewer)->post(route('workspace.save', $submission), [
+            'content' => $this->tiptapDoc('Forced reviewer edit.'),
+            'baseRevision' => $workspace->revision,
+            'force' => true,
+        ])->assertForbidden();
+
+        $this->assertStringNotContainsString('Forced reviewer edit', (string) $workspace->fresh()->plain_text);
+    }
+
+    public function test_a_reviewer_loses_edit_access_once_the_assignment_is_no_longer_live(): void
+    {
+        [$submission, $workspace] = $this->workspaceFor();
+        $reviewer = $this->user('Reviewer');
+
+        $assignment = \App\Models\ReviewerAssignment::create([
+            'submission_id' => $submission->id,
+            'reviewer_id' => $reviewer->id,
+            'status' => 'assigned',
+        ]);
+
+        foreach (['declined', 'completed'] as $status) {
+            $assignment->update(['status' => $status]);
+
+            $this->actingAs($reviewer)->get(route('workspace.document', $submission))
+                ->assertOk()
+                ->assertJsonPath('canEdit', false);
+
+            $this->actingAs($reviewer)->post(route('workspace.save', $submission), [
+                'content' => $this->tiptapDoc("Edit while {$status}."),
+                'baseRevision' => $workspace->revision,
+            ])->assertForbidden();
+        }
+
+        $this->assertStringNotContainsString('Edit while', (string) $workspace->fresh()->plain_text);
     }
 
     public function test_an_author_cannot_edit_after_the_manuscript_advances(): void

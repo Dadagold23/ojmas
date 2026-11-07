@@ -54,6 +54,18 @@
     </div>
     @endif
 
+    @if(session('orcid_claim_url'))
+    <div class="alert alert-info rounded-4 mb-4" data-aos="fade-up">
+        <div class="fw-semibold mb-1"><i class="bi bi-person-badge me-1"></i>Co-author ORCID verification link</div>
+        <p class="small mb-2">
+            Send this single-use link to the co-author. It is bound to that byline entry, expires in
+            {{ \App\Models\OrcidCoauthorClaim::LIFETIME_DAYS }} days, and can only verify that person.
+        </p>
+        <input type="text" class="form-control form-control-sm" readonly
+               value="{{ session('orcid_claim_url') }}" onclick="this.select()">
+    </div>
+    @endif
+
     @if($canPayForSubmission && !$hasPaidVetting && $submission->status !== 'published')
     <div class="alert alert-warning rounded-4 d-flex align-items-center gap-3 mb-4" data-aos="fade-up">
         <i class="bi bi-exclamation-triangle-fill fs-4 text-warning"></i>
@@ -106,6 +118,45 @@
     </div>
     @endif
 
+    @if($canManageSubmission && $submission->status === 'accepted')
+    @php
+        $proofApproved = $latestProofApproval?->status === \App\Models\ManuscriptProofApproval::STATUS_APPROVED;
+        $proofReady = $proofChecks['peer_review_concluded'] && $proofChecks['copyediting_completed'];
+    @endphp
+    <div class="card panel-card mb-4" data-aos="fade-up">
+        <div class="card-body p-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <h6 class="fw-bold mb-1"><i class="bi bi-pen me-2 text-primary"></i>Author approval for publication</h6>
+                @if($proofApproved)
+                    <div class="small text-success">
+                        <i class="bi bi-check2-circle me-1"></i>
+                        Approved {{ $latestProofApproval->approved_at?->format('d M Y, H:i') }}. The editorial team can now proceed to publication.
+                    </div>
+                @elseif($latestProofApproval?->status === \App\Models\ManuscriptProofApproval::STATUS_CORRECTIONS)
+                    <div class="small text-warning">
+                        <i class="bi bi-exclamation-circle me-1"></i>
+                        You requested corrections {{ $latestProofApproval->created_at->format('d M Y, H:i') }}. The editorial team will re-issue the proofs.
+                    </div>
+                @elseif($proofReady)
+                    <div class="small text-muted">Your proofs are ready. Review them and record your approval before the article can be published.</div>
+                @else
+                    <div class="small text-muted">
+                        Not available yet — peer review concluded:
+                        <strong>{{ $proofChecks['peer_review_concluded'] ? 'Yes' : 'No' }}</strong>,
+                        copyediting completed:
+                        <strong>{{ $proofChecks['copyediting_completed'] ? 'Yes' : 'No' }}</strong>.
+                    </div>
+                @endif
+            </div>
+            <a href="{{ route('author.proofs.show', $submission) }}"
+               class="btn {{ $proofReady || $proofApproved ? 'btn-primary' : 'btn-outline-secondary' }} btn-sm">
+                <i class="bi bi-file-earmark-check me-1"></i>
+                {{ $proofApproved ? 'View approval record' : 'Author approval for publication' }}
+            </a>
+        </div>
+    </div>
+    @endif
+
     <div class="row g-4">
         <div class="col-lg-7">
             <div class="card panel-card mb-4" data-aos="fade-up">
@@ -135,11 +186,40 @@
                 <div class="card-body p-4">
                     <h6 class="fw-bold mb-3"><i class="bi bi-people me-2 text-primary"></i>Co-Authors</h6>
                     @foreach($submission->coAuthors as $ca)
-                    <div class="d-flex align-items-start gap-2 mb-2">
+                    @php($activeClaim = $ca->hasVerifiedOrcid() ? null : $ca->activeOrcidClaim())
+                    <div class="d-flex align-items-start gap-2 mb-3">
                         <i class="bi bi-person-circle text-muted mt-1"></i>
-                        <div>
-                            <div class="fw-semibold small">{{ $ca->full_name }}</div>
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold small d-flex flex-wrap align-items-center gap-2">
+                                {{ $ca->full_name }}
+                                @if($ca->hasVerifiedOrcid())
+                                    <x-orcid-badge :orcid="$ca->orcid" :size="14" />
+                                @elseif($ca->orcid)
+                                    <span class="badge text-bg-light border" style="font-size:.68rem">ORCID not verified</span>
+                                @endif
+                            </div>
                             <div class="text-muted" style="font-size:.8rem">{{ $ca->institution }}{{ $ca->country ? ', '.$ca->country : '' }}</div>
+
+                            @if($orcidEnabled && $canManageSubmission && ! $ca->hasVerifiedOrcid())
+                                @if($activeClaim)
+                                    <div class="small text-muted mt-1">
+                                        Verification link issued {{ $activeClaim->created_at?->format('j M Y') }},
+                                        expires {{ $activeClaim->expires_at?->format('j M Y') }}.
+                                        <a href="{{ route('orcid.coauthor.show', ['token' => $activeClaim->token]) }}"
+                                           target="_blank" rel="noopener noreferrer">Open link</a>
+                                    </div>
+                                @else
+                                    <form method="POST"
+                                          action="{{ route('author.submissions.coauthors.orcid-claim', [$submission, $ca]) }}"
+                                          class="mt-1">
+                                        @csrf
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-2"
+                                                style="font-size:.72rem">
+                                            <x-orcid-icon :size="13" /> Issue ORCID verification link
+                                        </button>
+                                    </form>
+                                @endif
+                            @endif
                         </div>
                     </div>
                     @endforeach

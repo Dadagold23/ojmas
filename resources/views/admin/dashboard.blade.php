@@ -97,6 +97,11 @@
                     <i class="bi bi-calendar2-week me-1"></i>Issue Schedules
                 </a>
             @endcan
+            @can('manageOrcidSettings', new \App\Models\Submission())
+                <a href="{{ route('admin.orcid.index') }}" class="btn btn-outline-success btn-sm fw-semibold">
+                    <i class="bi bi-person-badge me-1"></i>ORCID
+                </a>
+            @endcan
             <a href="{{ route('admin.upload-diagnostics') }}" class="btn btn-outline-warning btn-sm fw-semibold">
                 <i class="bi bi-wrench-adjustable-circle me-1"></i>Upload Diagnostics
             </a>

@@ -15,9 +15,18 @@
             <h3 class="fw-bold mb-1">Review Assignment</h3>
             <p class="text-muted small mb-0">Read the manuscript files and submit your recommendation.</p>
         </div>
-        <a href="{{ route('reviewer.assignments.index') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left me-1"></i>Back
-        </a>
+        <div class="d-flex align-items-center gap-2">
+            @if($assignment->submission)
+                @can('openWorkspace', $assignment->submission)
+                <a href="{{ route('workspace.show', $assignment->submission) }}" class="btn btn-primary btn-sm">
+                    <i class="bi bi-columns-gap me-1"></i>Open Workspace
+                </a>
+                @endcan
+            @endif
+            <a href="{{ route('reviewer.assignments.index') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Back
+            </a>
+        </div>
     </div>
 
     @if(session('success'))
@@ -56,6 +65,14 @@
     <div class="card panel-card mb-4" data-aos="fade-up">
         <div class="card-body p-4">
             <h6 class="fw-bold mb-3"><i class="bi bi-folder2-open me-2 text-primary"></i>Manuscript Files</h6>
+            @if($assignment->submission)
+                @can('openWorkspace', $assignment->submission)
+                <p class="text-muted small mb-3">
+                    You do not need to download the manuscript to review it:
+                    <a href="{{ route('workspace.show', $assignment->submission) }}">read and annotate it in the workspace</a>.
+                </p>
+                @endcan
+            @endif
             @forelse($assignment->submission->files ?? [] as $file)
             @php
                 $iconMap = ['manuscript'   => ['bi-file-earmark-word', 'bg-primary-subtle text-primary'],

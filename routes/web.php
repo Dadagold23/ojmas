@@ -25,16 +25,21 @@ use App\Http\Controllers\Reviewer\DashboardController as ReviewerDashboardContro
 use App\Http\Controllers\Reviewer\AssignmentController as ReviewerAssignmentController;
 
 use App\Http\Controllers\Admin\PublicationController as AdminPublicationController;
+use App\Http\Controllers\Admin\PublicationAuthorController;
+use App\Http\Controllers\Admin\CrossrefDepositController;
 use App\Http\Controllers\Admin\AdCampaignController;
 use App\Http\Controllers\Admin\PushNotificationController;
 use App\Http\Controllers\Admin\IssueScheduleController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\ManagingEditorController;
+use App\Http\Controllers\Admin\OrcidConfigurationController;
 use App\Http\Controllers\Admin\SystemConfigurationController;
 use App\Http\Controllers\Author\RevisionController;
 use App\Http\Controllers\Author\ProofApprovalController;
+use App\Http\Controllers\CoauthorOrcidController;
 use App\Http\Controllers\Editor\EditorWorkspaceController;
 use App\Http\Controllers\ManuscriptWorkspaceController;
+use App\Http\Controllers\OrcidController;
 use App\Http\Controllers\PaystackWebhookController;
 use App\Http\Controllers\Reviewer\ReviewerWorkspaceController;
 
@@ -63,6 +68,22 @@ Route::get('/article/{slug}/cite/{format}', [HomeController::class, 'cite'])->na
 Route::get('/sitemap.xml',             [HomeController::class, 'sitemap'])->name('sitemap');
 Route::get('/calls-for-papers',        [\App\Http\Controllers\AdPublicController::class, 'callsForPapers'])->name('ads.calls');
 Route::get('/ads/{campaign}/click',    [\App\Http\Controllers\AdPublicController::class, 'click'])->middleware('throttle:60,1')->name('ads.click');
+
+// ── ORCID OAuth (public callback; co-authors may hold no OJMAS account) ────
+Route::get('/orcid/callback', [OrcidController::class, 'callback'])
+    ->middleware('throttle:30,1')
+    ->name('orcid.callback');
+
+// Must precede the token route so "complete" is not read as a token.
+Route::get('/orcid/coauthor/complete', [OrcidController::class, 'coauthorComplete'])
+    ->name('orcid.coauthor.complete');
+Route::get('/orcid/coauthor/{token}', [CoauthorOrcidController::class, 'show'])
+    ->where('token', '[A-Za-z0-9]+')
+    ->name('orcid.coauthor.show');
+Route::post('/orcid/coauthor/{token}/connect', [CoauthorOrcidController::class, 'start'])
+    ->where('token', '[A-Za-z0-9]+')
+    ->middleware('throttle:20,1')
+    ->name('orcid.coauthor.start');
 
 // ── Web Push subscription (Addendum M3) ──────────────────────────────────
 // The browser's own permission flow gates these: a subscription only ever
@@ -110,6 +131,11 @@ Route::middleware(array_filter([
     Route::patch('/profile',  [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    // ── ORCID identity (sign-in required before linking) ───────────────────
+    Route::get('/orcid/connect',  [OrcidController::class, 'start'])->middleware('throttle:20,1')->name('orcid.connect.start');
+    Route::post('/orcid/connect', [OrcidController::class, 'start'])->middleware('throttle:20,1')->name('orcid.connect');
+    Route::delete('/orcid/disconnect', [OrcidController::class, 'disconnect'])->name('orcid.disconnect');
+
     // ── Admin ─────────────────────────────────────────────────────────────────
     Route::prefix('admin')->name('admin.')->middleware('role:Super Admin|Admin|Managing Editor')->group(function () {
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
@@ -146,11 +172,28 @@ Route::middleware(array_filter([
             Route::get('/retention',                       [SystemConfigurationController::class, 'retention'])->name('retention');
             Route::put('/retention/{policy}',              [SystemConfigurationController::class, 'updateRetention'])->name('retention.update');
         });
+
+        // ── ORCID integration ──────────────────────────────────────────────
+        // Screening: manageOrcidSettings is Super Admin; manageOrcidAccounts
+        // also allows Admin. The client secret is never passed to the view.
+        Route::prefix('orcid')->name('orcid.')->group(function () {
+            Route::get('/',   [OrcidConfigurationController::class, 'index'])->name('index');
+            Route::put('/',   [OrcidConfigurationController::class, 'update'])->name('update');
+            Route::post('/connections/{connection}/release', [OrcidConfigurationController::class, 'release'])->name('connections.release');
+            Route::post('/authors/{author}/link',   [OrcidConfigurationController::class, 'linkAuthor'])->name('authors.link');
+            Route::post('/authors/{author}/unlink', [OrcidConfigurationController::class, 'unlinkAuthor'])->name('authors.unlink');
+        });
     });
 
     Route::prefix('admin')->name('admin.')->middleware('role:Super Admin|Admin|Managing Editor|Editor')->group(function () {
         Route::resource('publications', AdminPublicationController::class);
+        Route::get('/publications/{publication}/authors', [PublicationAuthorController::class, 'edit'])->name('publications.authors.edit');
+        Route::put('/publications/{publication}/authors', [PublicationAuthorController::class, 'update'])->name('publication.authors.update');
+        Route::delete('/publications/{publication}/authors/{author}', [PublicationAuthorController::class, 'destroy'])->name('publication.authors.destroy');
+        Route::post('/publications/{publication}/authors/reorder', [PublicationAuthorController::class, 'reorder'])->name('publication.authors.reorder');
         Route::get('/publications/{publication}/download', [AdminPublicationController::class, 'download'])->name('publications.download');
+        Route::get('/publications/{publication}/crossref-deposit', [CrossrefDepositController::class, 'show'])->name('publications.crossref-deposit.show');
+        Route::post('/publications/{publication}/crossref-deposit', [CrossrefDepositController::class, 'deposit'])->name('publications.crossref-deposit');
     });
 
     // ── Advertisements & Announcements (Addendum M2) ─────────────────────
@@ -207,6 +250,7 @@ Route::middleware(array_filter([
         Route::get('/submissions/{submission}/files/{file}/download', [EditorialController::class, 'downloadFile'])->name('submissions.files.download');
         Route::post('/submissions/{submission}/assign-reviewer',      [EditorialController::class, 'assignReviewer'])->name('submissions.assignReviewer');
         Route::post('/submissions/{submission}/decision',             [EditorialController::class, 'decision'])->name('submissions.decision');
+        Route::post('/submissions/{submission}/transition',           [EditorialController::class, 'transition'])->middleware('throttle:30,1')->name('submissions.transition');
 
         Route::get('/submissions/{submission}/publish',  [EditorSubmissionController::class, 'publishForm'])->name('submissions.publish.form');
         Route::post('/submissions/{submission}/publish', [EditorSubmissionController::class, 'publish'])->name('submissions.publish');
@@ -253,6 +297,11 @@ Route::middleware(array_filter([
 
         Route::post('/submissions/{submission}/files',              [SubmissionController::class, 'uploadFile'])->name('submissions.files.store');
         Route::delete('/submissions/{submission}/files/{file}',     [SubmissionController::class, 'deleteFile'])->name('submissions.files.destroy');
+
+        // Co-author ORCID invitation (single-use, bound to one byline entry)
+        Route::post('/submissions/{submission}/coauthors/{author}/orcid-claim', [SubmissionController::class, 'issueOrcidClaim'])
+            ->middleware('throttle:10,1')
+            ->name('submissions.coauthors.orcid-claim');
 
         Route::get('/payments',                             [AuthorPaymentController::class, 'index'])->name('payments.index');
         Route::post('/payments/initiate/{submission}',      [AuthorPaymentController::class, 'initiate'])->middleware('throttle:10,1')->name('payments.initiate');

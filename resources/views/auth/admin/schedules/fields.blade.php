@@ -97,6 +97,9 @@
                 <label class="form-label fw-semibold small">Optional banner / promotional media</label>
                 <input type="file" name="banner" accept="image/*" class="form-control">
                 @if($schedule?->banner_path)
+                    <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($schedule->banner_path) }}"
+                         alt="Current banner" class="rounded-2 border d-block mt-2"
+                         style="max-height: 140px; max-width: 100%; object-fit: cover;">
                     <div class="form-text">Current: {{ basename($schedule->banner_path) }} — uploading a new file replaces it.</div>
                 @endif
             </div>

@@ -65,10 +65,20 @@
                                 </span>
                             </td>
                             <td class="pe-4 text-end">
-                                <a href="{{ route('reviewer.assignments.show', $assignment->id) }}"
-                                   class="btn btn-sm btn-outline-primary fw-semibold">
-                                    <i class="bi bi-eye me-1"></i>Open & Download
-                                </a>
+                                <div class="d-inline-flex gap-2">
+                                    @if($assignment->submission)
+                                        @can('openWorkspace', $assignment->submission)
+                                        <a href="{{ route('workspace.show', $assignment->submission) }}"
+                                           class="btn btn-sm btn-primary fw-semibold">
+                                            <i class="bi bi-columns-gap me-1"></i>Review in Workspace
+                                        </a>
+                                        @endcan
+                                    @endif
+                                    <a href="{{ route('reviewer.assignments.show', $assignment->id) }}"
+                                       class="btn btn-sm btn-outline-primary fw-semibold">
+                                        <i class="bi bi-eye me-1"></i>Details
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                         @empty

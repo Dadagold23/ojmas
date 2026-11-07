@@ -23,6 +23,12 @@
 
     <div class="container-fluid py-4 px-lg-4">
 
+        {{-- Feedback for comment, version and conflict actions. The workspace
+             JS writes every result here; without this host the actions look
+             like they did nothing. --}}
+        <div id="workspace-toasts" class="position-fixed top-0 end-0 p-3"
+             style="z-index:1080; max-width:24rem;" aria-live="polite"></div>
+
         {{-- Header --}}
         <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
             <div>
@@ -71,8 +77,9 @@
         @if(!$capabilities['canEdit'])
             <div class="alert alert-info rounded-4 py-2 small" id="editor-notice">
                 <i class="bi bi-eye me-1"></i>
-                You have read access to this manuscript. Editing is restricted to the editorial team; the
-                submitting author may edit until peer review begins and while a revision window is open.
+                You have read access to this manuscript. Editing is restricted to the editorial team and
+                the reviewers assigned to it; the submitting author may edit until peer review begins and
+                while a revision window is open.
             </div>
         @endif
 

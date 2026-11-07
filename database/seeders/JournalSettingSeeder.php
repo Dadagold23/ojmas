@@ -12,13 +12,13 @@ class JournalSettingSeeder extends Seeder
         JournalSetting::updateOrCreate(
             ['id' => 1],
             [
-                'site_name' => 'OJMAS Journal',
+                'site_name' => 'OJMAS',
                 'acronym' => 'OJMAS',
                 'publisher_name' => 'Offa Journal of Multidisciplinary and Applied Sciences',
                 'contact_email' => 'support@ojmaspublish.online',
                 'support_phone' => '+2348000000000',
-                'submission_fee' => 15000,
-                'publication_fee' => 50000,
+                'submission_fee' => 10000,
+                'publication_fee' => 25000,
                 'address' => 'Offa, Kwara State, Nigeria',
                 'copyright_text' => 'Â© OJMAS Journal',
             ]

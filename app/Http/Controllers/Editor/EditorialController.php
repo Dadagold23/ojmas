@@ -16,13 +16,28 @@ use App\Notifications\SubmissionAcceptedNotification;
 use App\Notifications\SubmissionRejectedNotification;
 use App\Models\Issue;
 use App\Notifications\ArticlePublishedNotification;
+use App\Services\Publishing\PublicationReadinessService;
 use App\Services\Publishing\PublicationService;
+use App\Services\Workflow\EditorialWorkflowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 
 class EditorialController extends Controller
 {
+    /**
+     * Statuses at which an editorial decision is still outstanding. Accepting
+     * or rejecting is final: everything after it runs through the lifecycle
+     * (copyediting, proofs, publication) rather than another decision.
+     */
+    private const DECIDABLE_STATUSES = ['submitted', 'screening', 'under_review', 'revision_requested'];
+
+    public function __construct(
+        private readonly EditorialWorkflowService $workflow,
+        private readonly PublicationReadinessService $readiness,
+    ) {
+    }
+
     public function dashboard()
     {
         $stats = [
@@ -67,7 +82,18 @@ class EditorialController extends Controller
             'histories',
         ]);
 
-        return view('editor.submissions.show', compact('submission', 'reviewers'));
+        $stage = $this->workflow->currentStage($submission);
+
+        return view('editor.submissions.show', [
+            'submission' => $submission,
+            'reviewers' => $reviewers,
+            'stage' => $stage,
+            'transitions' => $this->workflow->availableTransitions($submission, auth()->user()),
+            'readiness' => $this->readiness->assess($submission),
+            'canDecide' => in_array($submission->status, self::DECIDABLE_STATUSES, true)
+                && auth()->user()->can('recordDecision', $submission),
+            'canPublish' => auth()->user()->can('publish', Submission::class),
+        ]);
     }
 
     public function assignReviewer(AssignReviewerRequest $request, Submission $submission)
@@ -114,7 +140,14 @@ class EditorialController extends Controller
 
     public function decision(EditorialDecisionRequest $request, Submission $submission)
     {
+        $this->authorize('recordDecision', $submission);
+
         abort_unless($submission->hasPaidVettingFee(), 422, 'Vetting fee must be paid before editorial decisions can be recorded.');
+        abort_unless(
+            in_array($submission->status, self::DECIDABLE_STATUSES, true),
+            422,
+            'This manuscript already has a final decision; later movement happens through the lifecycle actions.'
+        );
 
         $validated = $request->validated();
         $oldStatus = $submission->status;
@@ -125,7 +158,17 @@ class EditorialController extends Controller
             'message' => $validated['message'],
         ]);
 
-        $submission->update(['status' => $validated['decision']]);
+        $submission->update([
+            'status' => $validated['decision'],
+            // The workflow pointer follows the decision, otherwise an accepted
+            // manuscript remains at "initial submission" and copyediting can
+            // never be reached.
+            'current_stage' => match ($validated['decision']) {
+                'accepted' => 'accepted',
+                'rejected' => 'rejected',
+                default => 'author_revision',
+            },
+        ]);
 
         SubmissionStatusHistory::create([
             'submission_id' => $submission->id,
@@ -145,41 +188,72 @@ class EditorialController extends Controller
 
         return back()->with('success', 'Editorial decision recorded successfully.');
     }
-public function publish(Request $request, Submission $submission, PublicationService $publicationService)
-{
-    abort_unless($submission->hasPaidPublicationFee(), 422, 'Publication fee must be paid before an article can be published.');
 
-    $validated = $request->validate([
-        'issue_id' => ['required', 'exists:issues,id'],
-        'published_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:20480'],
-        'note' => ['nullable', 'string'],
-    ]);
+    /**
+     * Moves an accepted manuscript through copyediting and on to proofing.
+     *
+     * The to-stage is named by the form; the workflow catalogue and the actor's
+     * permissions decide whether it is allowed.
+     */
+    public function transition(Request $request, Submission $submission)
+    {
+        $this->authorize('manageWorkflow', $submission);
 
-    abort_unless(in_array($submission->status, ['accepted', 'screening']), 422, 'Only accepted or screening submissions can be published.');
+        $validated = $request->validate([
+            'to_stage' => ['required', 'string'],
+            'reason' => ['nullable', 'string', 'max:2000'],
+        ]);
 
-    $pdfPath = null;
-    if ($request->hasFile('published_pdf')) {
-        $pdfPath = $request->file('published_pdf')->store('published/articles', 'public');
-    }
+        $result = $this->workflow->transition(
+            $submission,
+            $validated['to_stage'],
+            $request->user(),
+            $validated['reason'] ?? null,
+        );
 
-    $article = $publicationService->publish(
-        $submission,
-        (int) $validated['issue_id'],
-        $pdfPath,
-        $validated['note'] ?? null
-    );
-
-    $submission->author->notify(new ArticlePublishedNotification($article));
-
-    foreach ($submission->coAuthors as $coAuthor) {
-        if ($coAuthor->email) {
-            \Illuminate\Support\Facades\Notification::route('mail', $coAuthor->email)
-                ->notify(new ArticlePublishedNotification($article));
+        if (! $result['ok']) {
+            return back()->with('error', $result['message']);
         }
-    }
 
-    return back()->with('success', 'Article published successfully.');
-}
+        return back()->with('success', $result['message']);
+    }
+    public function publish(Request $request, Submission $submission, PublicationService $publicationService)
+    {
+        $this->authorize('publish', Submission::class);
+
+        abort_unless($submission->hasPaidPublicationFee(), 422, 'Publication fee must be paid before an article can be published.');
+
+        $validated = $request->validate([
+            'issue_id' => ['required', 'exists:issues,id'],
+            'published_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:20480'],
+            'note' => ['nullable', 'string'],
+        ]);
+
+        abort_unless(in_array($submission->status, ['accepted', 'screening']), 422, 'Only accepted or screening submissions can be published.');
+
+        $pdfPath = null;
+        if ($request->hasFile('published_pdf')) {
+            $pdfPath = $request->file('published_pdf')->store('published/articles', 'public');
+        }
+
+        $article = $publicationService->publish(
+            $submission,
+            (int) $validated['issue_id'],
+            $pdfPath,
+            $validated['note'] ?? null
+        );
+
+        $submission->author->notify(new ArticlePublishedNotification($article));
+
+        foreach ($submission->coAuthors as $coAuthor) {
+            if ($coAuthor->email) {
+                \Illuminate\Support\Facades\Notification::route('mail', $coAuthor->email)
+                    ->notify(new ArticlePublishedNotification($article));
+            }
+        }
+
+        return back()->with('success', 'Article published successfully.');
+    }
 
     public function downloadFile(Submission $submission, ArticleFile $file)
     {

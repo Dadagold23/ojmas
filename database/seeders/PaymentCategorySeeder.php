@@ -13,7 +13,7 @@ class PaymentCategorySeeder extends Seeder
             ['slug' => 'vetting-fee'],
             [
                 'name' => 'Vetting Fee',
-                'default_amount' => 15000,
+                'default_amount' => 10000,
                 'currency' => 'NGN',
                 'is_active' => true,
             ]
@@ -23,7 +23,7 @@ class PaymentCategorySeeder extends Seeder
             ['slug' => 'publication-fee'],
             [
                 'name' => 'Publication Fee',
-                'default_amount' => 50000,
+                'default_amount' => 25000,
                 'currency' => 'NGN',
                 'is_active' => true,
             ]

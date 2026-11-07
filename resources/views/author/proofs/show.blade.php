@@ -4,7 +4,7 @@
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-start mb-4">
         <div>
-            <span class="badge text-bg-light text-primary px-3 py-2 mb-2">Proofs</span>
+            <span class="badge text-bg-light text-primary px-3 py-2 mb-2">Author approval for publication</span>
             <h3 class="fw-bold mb-1">{{ $submission->submission_no }}</h3>
             <p class="text-muted mb-0">{{ $submission->title }}</p>
         </div>
@@ -98,7 +98,7 @@
 
             <div class="card border-primary border-3 shadow-sm mb-3">
                 <div class="card-body p-4">
-                    <h6 class="fw-bold mb-3"><i class="bi bi-pen me-2 text-primary"></i>Your decision</h6>
+                    <h6 class="fw-bold mb-3"><i class="bi bi-pen me-2 text-primary"></i>Author approval for publication</h6>
 
                     @if($errors->any() && $errors->has('proofs'))
                         <div class="alert alert-warning rounded-3 small">{{ $errors->first('proofs') }}</div>

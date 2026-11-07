@@ -9,6 +9,7 @@
     <title>@yield('page_title', config('app.name', 'OJMAS'))</title>
 
     <meta name="description" content="@yield('meta_description', 'OJMAS Management System')">
+    <meta name="version" content="{{ config('journal.version') }}">
     @yield('head_extras')
     @if(config('push.vapid.public_key'))
         {{-- Only the public key belongs in the frontend; the private key
@@ -57,6 +58,15 @@
 
         .oj-brand i{
             color: var(--oj-accent);
+        }
+
+        .oj-version-badge{
+            font-size: .6em;
+            font-weight: 600;
+            letter-spacing: 0;
+            vertical-align: middle;
+            background: rgba(255, 255, 255, .14);
+            color: rgba(255, 255, 255, .85);
         }
 
         .oj-main{
@@ -221,6 +231,7 @@
         <div class="container">
             <a class="navbar-brand oj-brand" href="{{ route('home') }}">
                 <i class="bi bi-journal-richtext me-2"></i>OJMAS
+                <span class="badge oj-version-badge ms-2">v{{ config('journal.version') }}</span>
             </a>
 
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#ojNavbar">
@@ -346,9 +357,7 @@
         </div>
     </main>
 
-    @unless(\View::hasSection('hide_chrome'))
-    @include('layouts.footer')
-    @endunless
+    @yield('footer')
 
     @if(config('push.vapid.public_key'))
         {{-- Optional consent-first subscribe control (Addendum M3). --}}

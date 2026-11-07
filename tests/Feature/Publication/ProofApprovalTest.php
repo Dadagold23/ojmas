@@ -62,6 +62,29 @@ class ProofApprovalTest extends TestCase
             ->assertSee($submission->submission_no);
     }
 
+    public function test_the_publication_approval_screen_opens_after_acceptance_while_honestly_locked(): void
+    {
+        [$author, , $submission] = $this->authorAtProofStage('accepted');
+
+        $this->actingAs($author)
+            ->get(route('author.proofs.show', $submission))
+            ->assertOk()
+            ->assertSee('Author approval for publication')
+            ->assertSee('Copyediting completed')
+            ->assertSee('Locked while the checks above show False.');
+    }
+
+    public function test_the_submission_page_offers_the_author_approval_for_publication_button(): void
+    {
+        [$author, , $submission] = $this->authorAtProofStage('accepted');
+
+        $this->actingAs($author)
+            ->get(route('author.submissions.show', $submission))
+            ->assertOk()
+            ->assertSee('Author approval for publication')
+            ->assertSee(route('author.proofs.show', $submission));
+    }
+
     public function test_the_author_approval_is_recorded_and_the_editor_is_notified(): void
     {
         Notification::fake();

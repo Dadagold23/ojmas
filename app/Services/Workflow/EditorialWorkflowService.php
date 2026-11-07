@@ -197,6 +197,7 @@ class EditorialWorkflowService
             ['from' => 'editorial_decision', 'to' => 'rejected', 'label' => 'Reject', 'permission' => 'decision.record'],
             ['from' => 'author_revision', 'to' => 'further_review', 'label' => 'Revised manuscript returned', 'permission' => 'decision.record'],
             ['from' => 'author_revision', 'to' => 'copyediting', 'label' => 'Revision accepted', 'permission' => 'decision.record'],
+            ['from' => 'accepted', 'to' => 'copyediting', 'label' => 'Publication fee paid, begin copyediting', 'permission' => 'manuscript.edit'],
             ['from' => 'further_review', 'to' => 'editorial_decision', 'label' => 'Further reports submitted', 'permission' => 'decision.record'],
             ['from' => 'copyediting', 'to' => 'proof_approval', 'label' => 'Copyediting complete', 'permission' => 'manuscript.edit'],
             ['from' => 'proof_approval', 'to' => 'published', 'label' => 'Proofs approved', 'permission' => 'publication.publish'],
@@ -331,7 +332,8 @@ class EditorialWorkflowService
             return [];
         }
 
-        return EditorialStageTransition::where('from_stage_slug', $from)
+        return EditorialStageTransition::with('toStage')
+            ->where('from_stage_slug', $from)
             ->get()
             ->filter(fn (EditorialStageTransition $transition) => $this->actorMayTransition($actor, $transition))
             ->values()

@@ -91,7 +91,7 @@
 
                 <div class="col-lg-3 text-lg-end mt-4 mt-lg-0">
                     @if($issue->cover_image_path)
-                        <img src="{{ \Illuminate\Support\Facades\Storage::url($issue->cover_image_path) }}" alt="Cover of {{ $issue->title }}"
+                        <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($issue->cover_image_path) }}" alt="Cover of {{ $issue->title }}"
                              class="img-fluid rounded-4 mb-3 shadow-sm" style="max-height: 260px;">
                     @endif
                     @if($issue->pdf_path)

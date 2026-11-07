@@ -69,7 +69,16 @@
                             @endif
                         </dd>
                         <dt class="col-sm-4 small text-muted">Icon</dt>
-                        <dd class="col-sm-8 small">{{ $notification->icon_path ?? '—' }}</dd>
+                        <dd class="col-sm-8 small">
+                            @if($notification->icon_path)
+                                <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($notification->icon_path) }}"
+                                     alt="Notification icon" class="rounded-3 mb-1 d-block"
+                                     style="width: 72px; height: 72px; object-fit: cover;">
+                                <span class="text-muted">{{ $notification->icon_path }}</span>
+                            @else
+                                —
+                            @endif
+                        </dd>
                     </dl>
                 </div>
             </div>

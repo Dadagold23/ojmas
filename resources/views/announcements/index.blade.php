@@ -27,6 +27,12 @@
                     </span>
                 </div>
 
+                @if($announcement->icon_path)
+                    <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($announcement->icon_path) }}"
+                         alt="{{ $announcement->title }}" class="rounded-3 mb-3 d-block"
+                         style="max-height: 200px; max-width: 100%; object-fit: cover;">
+                @endif
+
                 <h5 class="fw-bold mb-2">{{ $announcement->title }}</h5>
                 <p class="mb-2">{{ $announcement->message }}</p>
 

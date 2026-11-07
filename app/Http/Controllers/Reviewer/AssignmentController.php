@@ -9,6 +9,7 @@ use App\Models\ReviewerAssignment;
 use App\Models\Submission;
 use App\Models\SubmissionStatusHistory;
 use App\Notifications\ReviewCompletedNotification;
+use App\Services\Review\ReviewService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -34,17 +35,18 @@ class AssignmentController extends Controller
         return view('reviewer.assignments.show', compact('assignment'));
     }
 
-    public function storeReview(SubmitReviewRequest $request, ReviewerAssignment $assignment)
+    public function storeReview(SubmitReviewRequest $request, ReviewerAssignment $assignment, ReviewService $reviews)
     {
         abort_unless($assignment->reviewer_id === auth()->id(), 403);
 
-        if ($assignment->review) {
+        if ($assignment->submittedReview()->exists()) {
             return back()->with('error', 'You have already submitted a review for this manuscript.');
         }
 
-        $review = $assignment->review()->create($request->validated());
-
-        $assignment->update(['status' => 'completed', 'responded_at' => now()]);
+        // The service records the report as `submitted` (with `submitted_at`)
+        // and completes the assignment. Writing the row directly here used to
+        // leave it at the table default, so readiness counted no reports.
+        $review = $reviews->submit($assignment, $request->user(), $request->validated());
 
         SubmissionStatusHistory::create([
             'submission_id' => $assignment->submission_id,

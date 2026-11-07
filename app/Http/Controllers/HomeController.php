@@ -250,12 +250,14 @@ class HomeController extends Controller
             ->sort()
             ->values();
 
+        // YEAR() is MySQL-only (SQLite, used by the test suite, has none).
         $years = Issue::where('status', 'published')
             ->whereNotNull('published_on')
-            ->selectRaw('YEAR(published_on) as year')
-            ->distinct()
-            ->orderByDesc('year')
-            ->pluck('year');
+            ->pluck('published_on')
+            ->map(fn ($publishedOn) => (int) $publishedOn->format('Y'))
+            ->unique()
+            ->sortDesc()
+            ->values();
 
         return view('issues', compact('issues', 'volumes', 'years', 'search', 'volume', 'year'));
     }

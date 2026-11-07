@@ -15,8 +15,10 @@ class SubmitReviewRequest extends FormRequest
     {
         return [
             'recommendation' => ['required', 'in:accept,minor_revision,major_revision,reject'],
-            'comments_for_author' => ['nullable', 'string'],
-            'comments_for_editor' => ['nullable', 'string'],
+            // A report without author-facing comments is not a review the
+            // decision workflow can rely on.
+            'comments_for_author' => ['required', 'string', 'max:20000'],
+            'comments_for_editor' => ['nullable', 'string', 'max:20000'],
         ];
     }
 }

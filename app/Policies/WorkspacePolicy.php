@@ -12,8 +12,8 @@ use App\Models\User;
  * Capability split
  * ----------------
  *  - **Read**: the author, co-authors, assigned reviewers and editorial staff.
- *  - **Edit**: editorial staff, the author before peer review starts, and the
- *    author while a revision window is open.
+ *  - **Edit**: editorial staff, assigned reviewers, the author before peer
+ *    review starts, and the author while a revision window is open.
  *  - **Review changes**: editorial staff only. An author cannot accept or
  *    reject their own tracked changes.
  *  - **Restore a version**: editorial staff only.
@@ -41,6 +41,12 @@ class WorkspacePolicy
     public function edit(User $user, Submission $submission): bool
     {
         if ($user->hasAnyRole(['Super Admin', 'Admin', 'Managing Editor', 'Managing Admin', 'Editor'])) {
+            return true;
+        }
+
+        // A reviewer works on the same workspace they read, scoped to a live
+        // assignment: declining or completing the review ends edit access.
+        if ($submission->hasActiveReviewerAssignmentBy($user)) {
             return true;
         }
 

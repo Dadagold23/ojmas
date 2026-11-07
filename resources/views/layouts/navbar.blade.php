@@ -1,6 +1,6 @@
 <nav class="navbar navbar-expand-lg navbar-light bg-white sticky-top" style="z-index:1030">
     <div class="container">
-        <a class="navbar-brand fw-bold" href="{{ route('home') }}">OJMAS</a>
+        <a class="navbar-brand fw-bold" href="{{ route('home') }}">OJMAS <span class="small ms-2 text-muted">v2.3.0</span></a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
             <span class="navbar-toggler-icon"></span>
         </button>

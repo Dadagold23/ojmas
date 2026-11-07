@@ -21,6 +21,8 @@
         $latestPublicationPayment = $submission->payments->where('purpose', 'publication_fee')->sortByDesc('created_at')->first();
         $canManuallyApprovePayment = auth()->user()->hasAnyRole(['Admin', 'Managing Editor', 'Super Admin']);
         $canAssignReviewer = $hasPaidVetting && in_array($submission->status, ['submitted', 'revision_requested'], true);
+        $unmetRequirements = collect($readiness['requirements'])->reject(fn ($r) => $r['met']);
+        $catalogue = \App\Models\EditorialStage::all()->keyBy('slug');
     @endphp
 
     {{-- Header --}}
@@ -71,6 +73,11 @@
                             $color = $colors[$submission->status] ?? 'secondary';
                         @endphp
                         <span class="badge bg-{{ $color }} meta-badge">{{ ucwords(str_replace('_',' ',$submission->status)) }}</span>
+                        @if($stage)
+                        <span class="badge {{ $stage->badgeClass() }} meta-badge">
+                            <i class="bi bi-diagram-3 me-1"></i>{{ $stage->name }}
+                        </span>
+                        @endif
                         @if($submission->subject_area)
                         <span class="badge text-bg-warning meta-badge">{{ $submission->subject_area }}</span>
                         @endif
@@ -405,7 +412,10 @@
                 </div>
             </div>
 
-            {{-- Editorial Decision --}}
+            {{-- Editorial Decision. Accepting or rejecting is final, so the
+                 form disappears once a decision is on record and the
+                 lifecycle card below takes over. --}}
+            @if($canDecide)
             <div class="card panel-card mb-4" data-aos="fade-up">
                 <div class="card-body p-4">
                     <h6 class="fw-bold mb-3"><i class="bi bi-gavel me-2 text-primary"></i>Editorial Decision</h6>
@@ -423,32 +433,138 @@
                         <div class="mb-3">
                             <label class="form-label small fw-semibold">Message to Author</label>
                             <textarea name="message" rows="4" class="form-control form-control-sm"
-                                      placeholder="Remarks or instructions for the author..."></textarea>
+                                      placeholder="Remarks or instructions for the author..." required></textarea>
                         </div>
                         <button class="btn btn-dark btn-sm w-100">Submit Decision</button>
                     </form>
                 </div>
             </div>
+            @endif
 
-            {{-- Publish --}}
-            @if(in_array($submission->status, ['screening','published']))
-            <div class="card panel-card border-success" style="border:2px solid #198754 !important" data-aos="fade-up">
+            {{-- Lifecycle: every stage move this editor is permitted to make
+                 from the manuscript's current stage, driven by the workflow
+                 catalogue rather than by hardcoded statuses. --}}
+            <div class="card panel-card mb-4" data-aos="fade-up" id="lifecycle">
                 <div class="card-body p-4">
-                    <h6 class="fw-bold mb-2"><i class="bi bi-send-check me-2 text-success"></i>Publish to Issue</h6>
-                    @if($submission->status === 'screening')
-                    <p class="text-muted small mb-3">
-                        Assigned to: <strong>{{ $submission->assignedEditor->name ?? 'N/A' }}</strong>
-                    </p>
-                    <a href="{{ route('editor.submissions.publish.form', $submission) }}"
-                       class="btn btn-success btn-sm w-100">
-                        <i class="bi bi-journal-arrow-up me-1"></i>Publish Article
-                    </a>
-                    @else
-                    <span class="badge bg-dark">Published</span>
+                    <h6 class="fw-bold mb-3"><i class="bi bi-diagram-3 me-2 text-primary"></i>Workflow Stage</h6>
+
+                    <div class="d-flex justify-content-between align-items-center border rounded-3 p-3 mb-3">
+                        <div>
+                            <div class="text-muted small">Current stage</div>
+                            <div class="fw-semibold">{{ $stage?->name ?? 'Not yet staged' }}</div>
+                            @if($stage?->description)
+                            <div class="text-muted" style="font-size:.78rem">{{ $stage->description }}</div>
+                            @endif
+                        </div>
+                        @if($stage)
+                        <span class="badge {{ $stage->badgeClass() }}">{{ ucfirst(str_replace('_', ' ', $stage->slug)) }}</span>
+                        @endif
+                    </div>
+
+                    @if($submission->current_stage === 'copyediting')
+                    <div class="alert alert-info border rounded-3 small mb-3">
+                        <i class="bi bi-pencil me-1"></i>
+                        Copyediting is open. Edit the manuscript in the workspace, then send it to author proofs
+                        when the copyedited text is ready.
+                    </div>
+                    @elseif($submission->current_stage === 'proof_approval')
+                    <div class="alert alert-info border rounded-3 small mb-3">
+                        <i class="bi bi-send me-1"></i>
+                        The proofs are with the author. Publication unlocks once the author approves them.
+                    </div>
+
+                    {{-- Proofs-published needs publication.publish, so an
+                         Editor's transition list is legitimately empty here;
+                         the publication panel above already spells out that
+                         the author's proof approval is what remains. --}}
+                    @unless($canPublish)
+                    <div class="alert alert-warning border rounded-3 small mt-3 mb-0">
+                        <i class="bi bi-shield-lock me-1"></i>
+                        Publishing is handled by the Admin account once the author's proof approval is on record.
+                    </div>
+                    @endunless
                     @endif
+
+                    @forelse($transitions as $transition)
+                    @php
+                        // Publication and author-revision moves open other
+                        // screens; the remaining lifecycle moves are recorded
+                        // here, in place.
+                        $nextSlug = $transition->to_stage_slug;
+                        $nextStage = $transition->toStage ?? $catalogue->get($nextSlug);
+                        $isPublish = $nextSlug === 'published';
+                        $feeBlocked = $nextSlug === 'copyediting' && ! $hasPaidPublication;
+                    @endphp
+                    <div class="border rounded-3 p-3 mb-2">
+                        <div class="d-flex justify-content-between align-items-start gap-3">
+                            <div class="small">
+                                <div class="fw-semibold">
+                                    <i class="bi bi-arrow-right-circle me-1 text-primary"></i>{{ $transition->label }}
+                                </div>
+                                <div class="text-muted" style="font-size:.78rem">
+                                    Moves the manuscript to <strong>{{ $nextStage?->name ?? $nextSlug }}</strong>.
+                                    @if($nextStage?->default_deadline_days)
+                                    The author is given {{ $nextStage->default_deadline_days }} days.
+                                    @endif
+                                </div>
+                            </div>
+                            @if($isPublish)
+                            <span class="badge text-bg-success">Final</span>
+                            @endif
+                        </div>
+
+                        @if($isPublish)
+                            @if(! $canPublish)
+                                <div class="alert alert-warning border rounded-3 small mt-3 mb-0">
+                                    Preparing the article for publication is handled by the Admin account. The panel above lists everything still outstanding.
+                                </div>
+                            @elseif(! $readiness['ready'])
+                                <div class="alert alert-warning border rounded-3 small mt-3 mb-0">
+                                    <div class="fw-semibold mb-1">Not ready to publish yet:</div>
+                                    <ul class="mb-0 ps-3">
+                                        @foreach($unmetRequirements as $requirement)
+                                        <li>{{ $requirement['name'] }} — {{ $requirement['detail'] }}</li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @else
+                                <a href="{{ route('editor.submissions.publish.form', $submission) }}"
+                                   class="btn btn-success btn-sm w-100 mt-3">
+                                    <i class="bi bi-journal-arrow-up me-1"></i>Publish Article
+                                </a>
+                            @endif
+                        @elseif($feeBlocked)
+                            <div class="alert alert-warning border rounded-3 small mt-3 mb-0">
+                                <i class="bi bi-credit-card me-1"></i>
+                                The publication fee must be confirmed before this step. Record it under Payment Status.
+                            </div>
+                        @else
+                            <form method="POST" action="{{ route('editor.submissions.transition', $submission) }}" class="mt-3">
+                                @csrf
+                                <input type="hidden" name="to_stage" value="{{ $nextSlug }}">
+                                @if($transition->requires_note)
+                                <div class="mb-2">
+                                    <label class="form-label small fw-semibold">Reason for the author</label>
+                                    <textarea name="reason" rows="3" class="form-control form-control-sm" required></textarea>
+                                </div>
+                                @else
+                                <input type="text" name="reason" class="form-control form-control-sm mb-2"
+                                       placeholder="Optional note, recorded in the audit log">
+                                @endif
+                                <button class="btn btn-primary btn-sm w-100">{{ $transition->label }}</button>
+                            </form>
+                        @endif
+                    </div>
+                    @empty
+                    <p class="text-muted small mb-0">
+                        There is no stage move available to you from here.
+                        @if($submission->current_stage === 'accepted')
+                        Confirm the publication fee above, then copyediting can begin.
+                        @endif
+                    </p>
+                    @endforelse
                 </div>
             </div>
-            @endif
 
         </div>
     </div>

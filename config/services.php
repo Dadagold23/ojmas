@@ -48,5 +48,24 @@ return [
         'verify_ssl'     => filter_var(env('PAYSTACK_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),
     ],
 
+    'orcid' => [
+        'client_id'     => env('ORCID_CLIENT_ID'),
+        'client_secret' => env('ORCID_CLIENT_SECRET'),
+        // Must exactly match the callback registered in ORCID Developer Tools.
+        'redirect'      => env('ORCID_REDIRECT_URI', env('APP_URL').'/orcid/callback'),
+        'enabled'       => filter_var(env('ORCID_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+        'sandbox'       => filter_var(env('ORCID_SANDBOX', false), FILTER_VALIDATE_BOOLEAN),
+        'scope'         => '/authenticate',
+        'timeout'       => (int) env('ORCID_TIMEOUT_SECONDS', 15),
+        'authorize_url' => 'https://orcid.org/oauth/authorize',
+        'token_url'     => 'https://orcid.org/oauth/token',
+        'api_url'       => 'https://pub.orcid.org/v3.0',
+        'profile_url'   => 'https://orcid.org',
+        'sandbox_authorize_url' => 'https://sandbox.orcid.org/oauth/authorize',
+        'sandbox_token_url'     => 'https://sandbox.orcid.org/oauth/token',
+        'sandbox_api_url'       => 'https://pub.sandbox.orcid.org/v3.0',
+        'sandbox_profile_url'   => 'https://sandbox.orcid.org',
+    ],
+
 
 ];

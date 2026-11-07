@@ -219,7 +219,7 @@
 
                 <div class="card-body px-4 pb-4">
                     @if($issue->cover_image_path)
-                        <img src="{{ \Illuminate\Support\Facades\Storage::url($issue->cover_image_path) }}"
+                        <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($issue->cover_image_path) }}"
                              alt="Current cover of {{ $issue->title }}"
                              class="img-fluid rounded-3 mb-3 border" style="max-height: 220px;">
                     @else

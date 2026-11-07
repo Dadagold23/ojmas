@@ -4,10 +4,14 @@ namespace App\Http\Controllers\Author;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreSubmissionRequest;
+use App\Models\ArticleAuthor;
 use App\Models\ArticleFile;
 use App\Models\Submission;
 use App\Models\SubmissionStatusHistory;
 use App\Notifications\NewSubmissionNotification;
+use App\Services\Orcid\ClaimInvalidException;
+use App\Services\Orcid\OrcidClaimService;
+use App\Services\Orcid\OrcidSettings;
 use App\Services\Payments\SubmissionPaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -45,13 +49,23 @@ class SubmissionController extends Controller
         return view('author.submissions.index', compact('submissions'));
     }
 
-    public function create()
+    public function create(OrcidSettings $orcidSettings)
     {
-        return view('author.submissions.create');
+        return view('author.submissions.create', [
+            'orcidEnabled' => $orcidSettings->enabled(),
+            'orcidRequired' => $orcidSettings->requiredForNewAuthors(),
+            'hasVerifiedOrcid' => auth()->user()->hasVerifiedOrcid(),
+        ]);
     }
 
-    public function store(StoreSubmissionRequest $request, SubmissionPaymentService $submissionPaymentService)
+    public function store(StoreSubmissionRequest $request, SubmissionPaymentService $submissionPaymentService, OrcidSettings $orcidSettings)
     {
+        if ($orcidSettings->requiredForNewAuthors() && ! auth()->user()->hasVerifiedOrcid()) {
+            return back()->withInput()->withErrors([
+                'orcid' => 'This journal requires a verified ORCID iD before a manuscript can be submitted. Connect your ORCID iD from your profile, then try again.',
+            ]);
+        }
+
         $validated = $request->validated();
         $submission = null;
         $storedPaths = [];
@@ -198,10 +212,11 @@ class SubmissionController extends Controller
 
         abort_unless($canViewSubmission, 403, 'This action is unauthorized.');
 
-        $submission->load(['coAuthors', 'files', 'histories', 'payments']);
+        $submission->load(['coAuthors.orcidClaims', 'files', 'histories', 'payments']);
         $canManageSubmission = $submission->isOwnedBy($user);
         $canPayForSubmission = $submission->canInitiatePaymentBy($user);
         $canApprovePayments = $user->hasAnyRole(['Admin', 'Managing Editor', 'Super Admin']);
+        $orcidEnabled = app(OrcidSettings::class)->enabled();
 
         $vettingCategory   = \App\Models\PaymentCategory::where('slug', 'vetting-fee')->first();
         $vettingFee        = $vettingCategory?->default_amount ?? 15000;
@@ -213,10 +228,43 @@ class SubmissionController extends Controller
         $pubCurrency       = $pubCategory?->currency ?? 'NGN';
         $hasPaidPublication = $submission->payments->where('purpose', 'publication_fee')->where('status', 'paid')->isNotEmpty();
 
+        $proofChecks = app(\App\Services\Workflow\EditorialWorkflowService::class)->proofGateChecks($submission);
+        $latestProofApproval = \App\Models\ManuscriptProofApproval::where('submission_id', $submission->id)
+            ->latest('id')
+            ->first();
+
         return view('author.submissions.show', compact(
             'submission', 'vettingFee', 'vettingCurrency', 'hasPaidVetting',
-            'publicationFee', 'pubCurrency', 'hasPaidPublication', 'canManageSubmission', 'canPayForSubmission', 'canApprovePayments'
+            'publicationFee', 'pubCurrency', 'hasPaidPublication', 'canManageSubmission', 'canPayForSubmission', 'canApprovePayments',
+            'orcidEnabled', 'proofChecks', 'latestProofApproval'
         ));
+    }
+
+    /**
+     * Issue a fresh, single-use ORCID verification link for a co-author.
+     *
+     * The link is bound to that co-author row; the submitting author cannot
+     * use it to verify their own identity or anyone else's.
+     */
+    public function issueOrcidClaim(
+        Submission $submission,
+        ArticleAuthor $author,
+        OrcidClaimService $claims,
+        OrcidSettings $orcidSettings,
+    ) {
+        abort_unless((int) $submission->author_id === (int) auth()->id(), 403);
+        abort_unless((int) $author->submission_id === (int) $submission->id, 404);
+        abort_unless($orcidSettings->enabled(), 404, 'ORCID sign-in is not enabled.');
+
+        try {
+            $claim = $claims->issue($author, auth()->user());
+        } catch (ClaimInvalidException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()
+            ->with('success', 'A personal verification link for '.$author->full_name.' is ready. It can be used once and expires in '.\App\Models\OrcidCoauthorClaim::LIFETIME_DAYS.' days.')
+            ->with('orcid_claim_url', route('orcid.coauthor.show', ['token' => $claim->token]));
     }
 
     public function destroy(Submission $submission)

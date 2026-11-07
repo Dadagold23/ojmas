@@ -2,10 +2,12 @@
 
 namespace Tests\Feature\Editorial;
 
+use App\Models\Review;
 use App\Models\ReviewerAssignment;
 use App\Models\Submission;
 use App\Models\User;
 use App\Notifications\ReviewCompletedNotification;
+use App\Services\Publishing\PublicationReadinessService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Permission\Models\Role;
@@ -76,7 +78,19 @@ class ReviewerSubmissionTest extends TestCase
             'comments_for_author' => 'The method is sound but the sample needs a power analysis.',
         ]);
 
+        $review = Review::where('reviewer_assignment_id', $assignment->id)->first();
+
+        $this->assertSame(Review::STATUS_SUBMITTED, $review->status);
+        $this->assertNotNull($review->submitted_at);
         $this->assertSame('completed', $assignment->fresh()->status);
+
+        // Readiness counts only submitted reports; a completed assignment
+        // whose report stayed at the legacy default used to read as "never
+        // meaningfully reviewed".
+        $assessment = app(PublicationReadinessService::class)->assess($assignment->submission->fresh());
+        $peerReview = collect($assessment['requirements'])->firstWhere('name', 'Peer review concluded');
+
+        $this->assertTrue($peerReview['met']);
     }
 
     public function test_a_second_review_is_refused(): void

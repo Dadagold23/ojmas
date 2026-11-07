@@ -5,10 +5,12 @@
 .env.production
 .phpactor.json
 .phpunit.result.cache
+/.codex
 /.fleet
 /.idea
 /.nova
 /.phpunit.cache
+/.qoder
 /.vscode
 /.zed
 /auth.json

@@ -171,6 +171,11 @@ class EditorWorkspaceController extends Controller
         ]);
 
         $submission->status = $validated['decision'];
+        $submission->current_stage = match ($validated['decision']) {
+            'accepted' => 'accepted',
+            'rejected' => 'rejected',
+            default => 'author_revision',
+        };
 
         if ($validated['decision'] === 'revision_requested') {
             $submission->revision_round = (int) $submission->revision_round + 1;

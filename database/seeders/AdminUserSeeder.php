@@ -67,6 +67,21 @@ class AdminUserSeeder extends Seeder
                 'password' => Hash::make('password123'),
                 'email_verified_at' => now(),
             ]
+
+            );
+
+        $editor->assignRole('Reviewer');
+        $editor->syncLegacyRoleColumn('Reviewer');
+
+        // ✅ REVIEWER USER
+        $author = User::firstOrCreate(
+            ['email' => 'reviewer@ojmaspublish.online'],
+            [
+                'name' => 'Reviewer User',
+                'role' => 'Reviewer',
+                'password' => Hash::make('password123'),
+                'email_verified_at' => now(),
+            ]
         );
 
         $author->assignRole('Author');

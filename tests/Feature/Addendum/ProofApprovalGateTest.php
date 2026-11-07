@@ -127,12 +127,23 @@ class ProofApprovalGateTest extends TestCase
         $submission->current_stage = 'copyediting';
         $submission->save();
 
-        // The policy admits the author at copyediting? No — the gate itself is
-        // proof_approval only; verify the refusal here and verify the visual
-        // lock on the page through a stage whose row the policy admits.
-        $this->actingAs($this->correspondingAuthor($submission))
+        $author = $this->correspondingAuthor($submission);
+
+        // The author may open the approval screen after acceptance so the
+        // remaining checks are visible, but the page is locked and recording
+        // an approval is still refused until the proofs stage.
+        $this->actingAs($author)
             ->get(route('author.proofs.show', $submission))
+            ->assertOk()
+            ->assertSee('Copyediting completed')
+            ->assertSee('False')
+            ->assertSee('Locked while the checks above show False');
+
+        $this->actingAs($author)
+            ->post(route('author.proofs.approve', $submission), ['status' => 'approved'])
             ->assertForbidden();
+
+        $this->assertSame(0, ManuscriptProofApproval::where('submission_id', $submission->id)->count());
     }
 
     /* ─────────────── creating the proof approval ─────────────── */

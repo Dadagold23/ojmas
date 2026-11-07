@@ -35,7 +35,10 @@ const state = {
   capabilities: {},
   visibilities: [],
   conflicted: false,
-  pendingAnchor: null,
+  // The last non-empty manuscript selection. Clicking into the comment box
+  // collapses the browser selection, so the anchor is captured here and used
+  // when the comment is posted.
+  anchor: null,
 }
 
 const csrf = document.querySelector('meta[name="csrf-token"]')?.content || ''
@@ -142,6 +145,14 @@ function updateCommentButton () {
   const { from, to } = editor.state.selection
   const hasSelection = from !== to
 
+  if (hasSelection) {
+    state.anchor = {
+      from,
+      to,
+      quoted: editor.state.doc.textBetween(from, to, ' '),
+    }
+  }
+
   if (el('btn-comment')) {
     el('btn-comment').disabled = !hasSelection || !state.capabilities.canComment
   }
@@ -151,6 +162,21 @@ function updateCommentButton () {
       ? editor.state.doc.textBetween(from, to, ' ').slice(0, 80)
       : ''
   }
+}
+
+/** The current selection, or the last one before the comment box took focus. */
+function selectedAnchor () {
+  const { from, to } = editor.state.selection
+
+  if (from !== to) {
+    return {
+      from,
+      to,
+      quoted: editor.state.doc.textBetween(from, to, ' '),
+    }
+  }
+
+  return state.anchor
 }
 
 /* ────────────────────────── tables ────────────────────────── */
@@ -341,17 +367,31 @@ function escapeHtml (value) {
   return node.innerHTML
 }
 
-async function addComment () {
-  const { from, to } = editor.state.selection
+/** The toolbar button captures the selection, then hands over to the panel. */
+function focusCommentBox () {
+  if (!selectedAnchor()) {
+    toast('Select some text in the manuscript first.', 'warning')
+    return
+  }
 
-  if (from === to) {
+  const body = el('comment-body')
+
+  if (body) {
+    body.focus()
+    toast('Write your comment, then press Post.', 'info')
+  }
+}
+
+async function addComment () {
+  const anchor = selectedAnchor()
+
+  if (!anchor) {
     toast('Select some text in the manuscript first.', 'warning')
     return
   }
 
   const body = el('comment-body').value.trim()
   const visibility = el('comment-visibility').value
-  const quoted = editor.state.doc.textBetween(from, to, ' ')
 
   if (!body) {
     toast('Write a comment before posting.', 'warning')
@@ -360,11 +400,20 @@ async function addComment () {
 
   const result = await api(el('app').dataset.commentUrl, {
     method: 'POST',
-    body: JSON.stringify({ body, anchorFrom: from, anchorTo: to, quotedText: quoted, visibility }),
+    body: JSON.stringify({
+      body,
+      anchorFrom: anchor.from,
+      anchorTo: anchor.to,
+      quotedText: anchor.quoted,
+      visibility,
+    }),
   })
 
   if (result.status !== 201) {
-    toast(result.body?.error || 'The comment could not be posted.', 'danger')
+    const message = Array.isArray(result.body?.message)
+      ? result.body.message.join(' ')
+      : result.body?.message || result.body?.error
+    toast(message || 'The comment could not be posted.', 'danger')
     return
   }
 
@@ -372,6 +421,7 @@ async function addComment () {
   autosave.markDirty()
 
   el('comment-body').value = ''
+  state.anchor = null
   await loadComments()
   toast('Comment added.', 'success')
 }
@@ -653,7 +703,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   boot()
 
-  el('btn-comment')?.addEventListener('click', addComment)
+  el('btn-comment')?.addEventListener('click', focusCommentBox)
   el('btn-comment-post')?.addEventListener('click', addComment)
   el('btn-save-now')?.addEventListener('click', () => autosave.flushNow())
   el('btn-save-version')?.addEventListener('click', saveVersion)

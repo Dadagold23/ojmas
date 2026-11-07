@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\Orcid\OrcidId;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,6 +38,11 @@ class RegisteredUserController extends Controller
             'phone'       => ['required', 'string', 'max:30'],
             'institution' => ['required', 'string', 'max:255'],
             'country'     => ['required', 'string', 'max:100'],
+            'orcid'       => ['nullable', 'string', 'max:19', function (string $attribute, mixed $value, \Closure $fail) {
+                if (filled($value) && ! OrcidId::isWellFormed((string) $value)) {
+                    $fail('Enter a valid ORCID iD, for example 0000-0002-1825-0097.');
+                }
+            }],
             'password'    => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
@@ -54,6 +60,9 @@ class RegisteredUserController extends Controller
             'phone'       => $validated['phone'],
             'institution' => $validated['institution'],
             'country'     => $validated['country'],
+            // A self-typed ORCID is stored for display only; it is not
+            // verified until the account completes the OAuth flow.
+            'orcid'       => filled($validated['orcid'] ?? null) ? OrcidId::normalize($validated['orcid']) : null,
             'role'        => 'Author',
             'password'    => Hash::make($validated['password']),
             'email_verified_at' => config('auth.email_verification_enabled') ? null : now(),

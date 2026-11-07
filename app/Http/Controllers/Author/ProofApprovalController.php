@@ -19,7 +19,7 @@ class ProofApprovalController extends Controller
 {
     public function show(Request $request, Submission $submission)
     {
-        $this->authorize('approveProofs', $submission);
+        $this->authorize('viewProofs', $submission);
 
         $submission->loadMissing(['author', 'files', 'manuscriptVersions']);
 

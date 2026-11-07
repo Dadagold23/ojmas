@@ -56,7 +56,12 @@
         <input type="file" name="icon" class="form-control @error('icon') is-invalid @enderror" accept=".jpg,.jpeg,.png,.webp,.gif">
         <div class="form-text">Image ≤ 2 MB — shown inside the notification where the browser supports it.</div>
         @if($n?->icon_path)
-            <div class="small text-muted mt-1">Current: {{ $n->icon_path }}</div>
+            <div class="mt-2">
+                <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($n->icon_path) }}"
+                     alt="Current icon" class="rounded-2 border d-block mb-1"
+                     style="width: 56px; height: 56px; object-fit: cover;">
+                <div class="small text-muted">Current: {{ $n->icon_path }}</div>
+            </div>
         @endif
         @error('icon')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
     </div>

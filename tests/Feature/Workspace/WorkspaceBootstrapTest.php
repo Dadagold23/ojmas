@@ -147,7 +147,7 @@ class WorkspaceBootstrapTest extends TestCase
         $this->assertDatabaseCount('manuscript_workspace_documents', 1);
     }
 
-    public function test_an_assigned_reviewer_can_read_but_not_edit_the_bootstrapped_manuscript(): void
+    public function test_an_assigned_reviewer_can_read_and_edit_the_bootstrapped_manuscript(): void
     {
         [$submission] = $this->legacySubmission('legacy-paper.docx');
 
@@ -167,16 +167,16 @@ class WorkspaceBootstrapTest extends TestCase
 
         $document = $this->actingAs($reviewer)->getJson(route('workspace.document', $submission));
         $document->assertOk();
-        $this->assertFalse((bool) $document->json('canEdit'));
+        $this->assertTrue((bool) $document->json('canEdit'));
 
         $this->actingAs($reviewer)
             ->postJson(route('workspace.save', $submission), [
                 'content' => ['type' => 'doc', 'content' => []],
                 'baseRevision' => 1,
             ])
-            ->assertForbidden();
+            ->assertOk();
 
-        $this->assertSame(1, (int) ManuscriptWorkspaceDocument::first()->revision);
+        $this->assertSame(2, (int) ManuscriptWorkspaceDocument::first()->revision);
     }
 
     public function test_a_non_docx_original_reports_honestly_and_edits_nothing(): void

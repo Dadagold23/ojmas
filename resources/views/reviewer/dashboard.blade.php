@@ -64,6 +64,10 @@
     </div>
 
     <div class="mb-4" data-aos="fade-up">
+        <x-orcid-connect :user="auth()->user()" compact />
+    </div>
+
+    <div class="mb-4" data-aos="fade-up">
         <h3 class="dash-title mb-1">Reviewer Dashboard</h3>
         <p class="text-muted mb-0">Your assignment summary and recent review activity.</p>
     </div>
@@ -163,10 +167,16 @@
                             </td>
                             <td class="pe-4 text-end">
                                 <div class="d-inline-flex gap-2">
+                                    @can('openWorkspace', $assignment->submission)
+                                    <a href="{{ route('workspace.show', $assignment->submission) }}"
+                                       class="btn btn-sm btn-primary">
+                                        <i class="bi bi-columns-gap me-1"></i>Open Workspace
+                                    </a>
+                                    @endcan
                                     @if($primaryFile)
                                     <a href="{{ route('reviewer.submissions.files.download', [$assignment->submission, $primaryFile]) }}"
                                        class="btn btn-sm btn-outline-primary">
-                                        <i class="bi bi-download me-1"></i>Download Manuscript
+                                        <i class="bi bi-download me-1"></i>Download
                                     </a>
                                     @endif
                                     <a href="{{ route('reviewer.assignments.show', $assignment->id) }}"

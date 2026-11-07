@@ -9,9 +9,9 @@
             <p class="text-muted mb-0">{{ $submission->title }}</p>
         </div>
         <div class="d-flex gap-2">
-            @if($submission->current_stage === 'proof_approval')
+            @if(in_array($submission->current_stage, ['accepted', 'copyediting', 'proof_approval'], true) || $submission->status === 'accepted')
                 <a href="{{ route('author.proofs.show', $submission) }}" class="btn btn-primary btn-sm">
-                    <i class="bi bi-file-earmark-check me-1"></i>Review and approve the proofs
+                    <i class="bi bi-file-earmark-check me-1"></i>Author approval for publication
                 </a>
             @endif
             <a href="{{ route('author.revisions.compare', $submission) }}" class="btn btn-outline-secondary btn-sm">

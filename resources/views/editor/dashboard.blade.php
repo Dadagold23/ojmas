@@ -63,6 +63,10 @@
         </div>
     </div>
 
+    <div class="mb-4" data-aos="fade-up">
+        <x-orcid-connect :user="auth()->user()" compact />
+    </div>
+
     <div class="d-flex justify-content-between align-items-center mb-4" data-aos="fade-up">
         <div>
             <h3 class="dash-title mb-1">Editor Dashboard</h3>

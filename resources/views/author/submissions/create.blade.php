@@ -24,6 +24,16 @@
     </div>
     @endif
 
+    @if($orcidRequired && ! $hasVerifiedOrcid)
+    <div class="alert alert-warning rounded-4 mb-4">
+        <strong><i class="bi bi-patch-exclamation me-1"></i>Verified ORCID required.</strong>
+        This journal requires a verified ORCID iD before a manuscript can be submitted.
+        <a href="{{ route('orcid.connect.start', ['return_to' => request()->getRequestUri()]) }}" class="alert-link">
+            Connect your ORCID iD
+        </a> from your profile, then return to this form.
+    </div>
+    @endif
+
     <form method="POST" action="{{ route('author.submissions.store') }}" enctype="multipart/form-data">
         @csrf
 
@@ -58,10 +68,30 @@
                                placeholder="e.g. Computer Science">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label fw-semibold">Your ORCID <span class="text-muted fw-normal">(optional, will appear in the published byline)</span></label>
-                        <input type="text" name="author_orcid" class="form-control" value="{{ old('author_orcid', auth()->user()->orcid) }}"
-                               placeholder="0000-0000-0000-0000">
-                        <div class="file-hint mt-1">16 digits, with or without hyphens</div>
+                        <label class="form-label fw-semibold d-flex align-items-center gap-2">
+                            <x-orcid-icon :size="18" />
+                            Corresponding Author ORCID
+                            <span class="text-muted fw-normal">(optional)</span>
+                        </label>
+
+                        @if($hasVerifiedOrcid)
+                            <div class="input-group">
+                                <input type="text" name="author_orcid" class="form-control" value="{{ auth()->user()->orcid }}" readonly>
+                                <span class="input-group-text text-success">
+                                    <i class="bi bi-patch-check-fill me-1"></i>Verified
+                                </span>
+                            </div>
+                            <div class="file-hint mt-1">
+                                Verified via ORCID. This identifier will appear in the published byline and metadata.
+                            </div>
+                        @else
+                            <input type="text" name="author_orcid" class="form-control" value="{{ old('author_orcid', auth()->user()->orcid) }}"
+                                   placeholder="0000-0000-0000-0000">
+                            <div class="file-hint mt-1">
+                                16 digits, with or without hyphens.
+                                <a href="{{ route('profile.edit') }}">Verify this iD</a> to show the authenticated ORCID badge.
+                            </div>
+                        @endif
                         @error('author_orcid')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                     </div>
                 </div>
@@ -104,6 +134,11 @@
                     </button>
                 </div>
                 <div id="coAuthorList"></div>
+                <div class="alert alert-light border small text-muted mb-0 mt-2">
+                    <i class="bi bi-shield-check me-1 text-success"></i>
+                    ORCID iDs entered here are saved as unverified. After submitting, you can copy a secure,
+                    one-time verification link for each co-author from the submission page.
+                </div>
             </div>
         </div>
 
@@ -140,6 +175,7 @@
                 </button>
             </div>
         </div>
+        <div class="form-text mt-2">ORCID is optional; the co-author can verify it later using a secure link.</div>
     </div>
 </template>
 

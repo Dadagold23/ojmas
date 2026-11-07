@@ -1,9 +1,10 @@
-<footer class="footer mt-5 py-5">
+<footer class="footer py-4">
     <div class="container">
-        <div class="row g-4">
-            <div class="col-md-4">
-                <h5 class="text-white fw-bold">OJMAS</h5>
-                <p class="mb-3">Modern e-publishing journal platform for manuscript submission and publication.</p>
+        <div class="row g-3 align-items-center">
+            <div class="col-lg-6">
+                <p class="mb-2">&copy; {{ date('Y') }} OJMAS Journal - Version {{ config('journal.version') }}. All rights reserved.</p>
+                <p class="mb-1 small">P-ISSN: 3121-7508 | E-ISSN: 3156-5182</p>
+                <p class="mb-3 small">License: {{ $journalHighlights['license_version'] ?? 'Creative Commons Attribution 4.0 International License' }}</p>
                 <div class="d-flex align-items-center gap-3">
                     <a href="#" class="text-decoration-none text-light" aria-label="Facebook">
                         <i class="bi bi-facebook"></i>
@@ -19,25 +20,20 @@
                     </a>
                 </div>
             </div>
-            <div class="col-md-4">
-                <h6 class="text-white fw-bold">Quick Links</h6>
-                <ul class="list-unstyled mb-0 small">
-                    <li class="mb-1"><a href="{{ route('editorial') }}" class="text-decoration-none text-light">Editorial</a></li>
-                    <li class="mb-1"><a href="{{ route('editorial.board') }}" class="text-decoration-none text-light">Editorial Board</a></li>
-                    <li class="mb-1"><a href="{{ route('editorial.advisers') }}" class="text-decoration-none text-light">Editorial Advisers</a></li>
-                    <li class="mb-1"><a href="{{ route('scope.policies') }}" class="text-decoration-none text-light">Scope & Policies</a></li>
-                    <li class="mb-1"><a href="{{ route('call.for.papers') }}" class="text-decoration-none text-light">Call for Papers</a></li>
-                    <li class="mb-1"><a href="{{ route('announcements') }}" class="text-decoration-none text-light">Announcements</a></li>
-                    <li class="mb-1"><a href="{{ route('archives') }}" class="text-decoration-none text-light">Archives</a></li>
-                    <li class="mb-1"><a href="{{ route('guidelines') }}" class="text-decoration-none text-light">Guidelines</a></li>
-                    <li><a href="{{ route('contact') }}" class="text-decoration-none text-light">Contact</a></li>
-                </ul>
-            </div>
-            <div class="col-md-4">
-                <h6 class="text-white fw-bold">Contact</h6>
-                <p class="mb-1">Email: support@ojmaspublish.online</p>
-                <p class="mb-1">P-ISSN: 3121-7508 | E-ISSN: 3156-5182</p>
-                <p class="mb-0">License: Creative Commons Attribution 4.0 International License</p>
+            <div class="col-lg-6">
+                <h6 class="text-white fw-bold mb-3 text-lg-end text-start">Quick Links</h6>
+                <div class="row row-cols-2 g-1 text-lg-end text-start small">
+                    <div class="col"><a href="{{ route('home') }}">Home</a></div>
+                    <div class="col"><a href="{{ route('editorial') }}">Editorial</a></div>
+                    <div class="col"><a href="{{ route('editorial.board') }}">Editorial Board</a></div>
+                    <div class="col"><a href="{{ route('editorial.advisers') }}">Advisers</a></div>
+                    <div class="col"><a href="{{ route('scope.policies') }}">Scope & Policies</a></div>
+                    <div class="col"><a href="{{ route('call.for.papers') }}">Call for Papers</a></div>
+                    <div class="col"><a href="{{ route('archives') }}">Archives</a></div>
+                    <div class="col"><a href="{{ route('issues.index') }}">Issues</a></div>
+                    <div class="col"><a href="#about">About</a></div>
+                    <div class="col"><a href="#contact">Contact</a></div>
+                </div>
             </div>
         </div>
     </div>

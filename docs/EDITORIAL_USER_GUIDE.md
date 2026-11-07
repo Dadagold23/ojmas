@@ -19,15 +19,17 @@ The authoritative source is the permission catalogue — see
 | Assign reviewers / invite / remind | | | ✔ | ✔ | ✔ |
 | Record decisions (accept / revise / reject) | | | | ✔ | ✔ |
 | Open & close revision rounds | | | ✔ | ✔ | ✔ |
+| Copyediting (begin, and complete to author proofs) | | | ✔ | ✔ | ✔ |
 | Manage style profiles / workflow stages / retention | | | ✖ | ✖ | ✔ |
-| Publish to an issue | | | ✖ | ✔ | ✔ |
+| Publish to an issue | | | ✖ | ✖ | ✔ |
 | Approve proofs (own paper) | ✔ (at proof stage) | | | | |
 
 Notes:
 
-- **Managing Editor deliberately cannot publish.** It coordinates the
-  workflow; publication is an Editor/Super Admin act. Do not "fix" this
-  without a conscious policy decision.
+- **Neither the Managing Editor nor the Editor publishes.** `publication.publish`
+  belongs to Super Admin (and Admin). Editors take the manuscript as far as
+  author proofs; a Super Admin publishes. Do not "fix" this without a conscious
+  policy decision.
 - All of these boundaries are enforced server-side. Invisible buttons are
   cosmetic only; do not rely on hidden UI as an access control.
 
@@ -37,9 +39,15 @@ Submissions move through thirteen stages: submission received → technical
 validation → editorial screening → reviewer assignment → peer review →
 editorial decision → author revision → copyediting → proof approval →
 published (or withdrawn / rejected / legacy paths). Every move is a
-**workflow transition** by a staff member from the editorial workspace; there
-are transition permission checks and each move records who, what, when, and
-any note.
+**workflow transition** by a staff member; there are transition permission
+checks and each move records who, what, when, and any note.
+
+The manuscript page (**Editor → Submissions → open a manuscript**) shows the
+current stage and, under **Workflow Stage**, every move the signed-in user may
+make from it. Accepting or rejecting is final: the decision form disappears
+once a decision is on record, and the manuscript continues through
+copyediting (`Copyediting complete` sends it to the author for proofing) and
+publication (Super Admin / Admin only).
 
 - **Reviewer assignment stage:** assign reviewers with due dates; send
   reminders from the assignment list. Reviewers see only a **blinded copy** —

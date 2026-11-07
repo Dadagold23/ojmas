@@ -24,5 +24,9 @@
             </form>
         </div>
     </div>
+
+    <div class="mt-4">
+        <x-orcid-connect :user="auth()->user()" :allow-disconnect="true" />
+    </div>
 </div>
 @endsection

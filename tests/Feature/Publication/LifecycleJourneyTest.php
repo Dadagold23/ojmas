@@ -165,6 +165,26 @@ class LifecycleJourneyTest extends TestCase
         $this->assertSame(1, Article::where('submission_id', $submission->id)->count());
     }
 
+    public function test_an_accepted_manuscript_can_move_into_copyediting(): void
+    {
+        $author = User::factory()->create();
+        $author->assignRole('Author');
+
+        $editor = User::factory()->create();
+        $editor->assignRole('Editor');
+
+        $submission = Submission::factory()->create([
+            'author_id' => $author->id,
+            'current_stage' => 'accepted',
+            'status' => 'accepted',
+        ]);
+
+        $result = $this->workflow->transition($submission, 'copyediting', $editor, 'Publication fee paid.');
+
+        $this->assertTrue($result['ok'], $result['message']);
+        $this->assertSame('copyediting', $submission->fresh()->current_stage);
+    }
+
     public function test_stage_transitions_refuse_the_skips_the_brief_names(): void
     {
         $author = User::factory()->create();

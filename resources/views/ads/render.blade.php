@@ -16,16 +16,16 @@
                     @endif
                 </div>
 
-                @if($adCampaign->media_type === 'video' && $adCampaign->media_path)
+                @if($adCampaign->media_type === 'video' && ($adCampaign->media_path || $adCampaign->external_media_url))
                     <video class="w-100 rounded-3" style="max-height: 320px;" controls preload="metadata"
-                           src="{{ \Illuminate\Support\Facades\Storage::url($adCampaign->media_path) }}"></video>
-                @elseif($adCampaign->media_type === 'audio' && $adCampaign->media_path)
+                           src="{{ $adCampaign->media_path ? \Illuminate\Support\Facades\Storage::disk('public')->url($adCampaign->media_path) : $adCampaign->external_media_url }}"></video>
+                @elseif($adCampaign->media_type === 'audio' && ($adCampaign->media_path || $adCampaign->external_media_url))
                     <audio class="w-100" controls preload="metadata"
-                           src="{{ \Illuminate\Support\Facades\Storage::url($adCampaign->media_path) }}"></audio>
+                           src="{{ $adCampaign->media_path ? \Illuminate\Support\Facades\Storage::disk('public')->url($adCampaign->media_path) : $adCampaign->external_media_url }}"></audio>
                 @elseif($adCampaign->media_path)
                     <img class="img-fluid rounded-3 w-100"
                          style="max-height: 320px; object-fit: cover;"
-                         src="{{ \Illuminate\Support\Facades\Storage::url($adCampaign->media_path) }}"
+                         src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($adCampaign->media_path) }}"
                          alt="{{ $adCampaign->title }}">
                 @elseif($adCampaign->external_media_url)
                     <img class="img-fluid rounded-3 w-100"

@@ -36,6 +36,27 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasMany(Submission::class, 'author_id');
     }
+
+    public function orcidConnection()
+    {
+        return $this->hasOne(OrcidConnection::class);
+    }
+
+    public function hasVerifiedOrcid(): bool
+    {
+        $connection = $this->relationLoaded('orcidConnection')
+            ? $this->orcidConnection
+            : $this->orcidConnection()->first();
+
+        return $connection !== null
+            && $connection->isConnected()
+            && $connection->orcid_id === $this->orcid;
+    }
+
+    public function verifiedOrcidId(): ?string
+    {
+        return $this->hasVerifiedOrcid() ? $this->orcid : null;
+    }
     public function reviewerAssignments()
     {
         return $this->hasMany(ReviewerAssignment::class, 'reviewer_id');

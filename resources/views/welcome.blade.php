@@ -10,6 +10,7 @@
     <meta name="keywords"
         content="journal, academic journal, research publication, peer review, scholarly articles, OJMAS">
     <meta name="author" content="OJMAS">
+    <meta name="version" content="{{ config('journal.version') }}">
 
     <!-- Open Graph / Social Metadata -->
     <meta property="og:title" content="{{ config('app.name', 'OJMAS') }}">
@@ -60,6 +61,15 @@
         max-width: calc(100% - 72px);
         line-height: 1.1;
         white-space: normal;
+    }
+
+    .navbar-brand .oj-version-badge {
+        font-size: .6em;
+        font-weight: 600;
+        letter-spacing: 0;
+        vertical-align: middle;
+        background: rgba(255, 255, 255, .14);
+        color: rgba(255, 255, 255, .85);
     }
 
     .hero-section {
@@ -287,6 +297,7 @@
         <div class="container">
             <a class="navbar-brand" href="{{ route('home') }}">
                 <i class="bi bi-journal-richtext me-2"></i>OJMAS
+                <span class="badge oj-version-badge ms-2">v{{ config('journal.version') }}</span>
             </a>
 
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#ojmasNavbar">
@@ -842,46 +853,7 @@
         </div>
     </section>
 
-    <footer class="footer py-4">
-        <div class="container">
-            <div class="row g-3 align-items-center">
-                <div class="col-lg-6">
-                    <p class="mb-2">&copy; {{ date('Y') }} OJMAS. All rights reserved.</p>
-                    <p class="mb-1 small">P-ISSN: 3121-7508 | E-ISSN: 3156-5182</p>
-                    <p class="mb-3 small">License: {{ $journalHighlights['license_version'] }}</p>
-                    <div class="d-flex align-items-center gap-3">
-                        <a href="#" class="text-decoration-none text-light" aria-label="Facebook">
-                            <i class="bi bi-facebook"></i>
-                        </a>
-                        <a href="#" class="text-decoration-none text-light" aria-label="X">
-                            <i class="bi bi-twitter-x"></i>
-                        </a>
-                        <a href="#" class="text-decoration-none text-light" aria-label="Instagram">
-                            <i class="bi bi-instagram"></i>
-                        </a>
-                        <a href="#" class="text-decoration-none text-light" aria-label="LinkedIn">
-                            <i class="bi bi-linkedin"></i>
-                        </a>
-                    </div>
-                </div>
-                <div class="col-lg-6">
-                    <h6 class="text-white fw-bold mb-3 text-lg-end text-start">Quick Links</h6>
-                    <div class="row row-cols-2 g-1 text-lg-end text-start small">
-                        <div class="col"><a href="{{ route('home') }}">Home</a></div>
-                        <div class="col"><a href="{{ route('editorial') }}">Editorial</a></div>
-                        <div class="col"><a href="{{ route('editorial.board') }}">Editorial Board</a></div>
-                        <div class="col"><a href="{{ route('editorial.advisers') }}">Advisers</a></div>
-                        <div class="col"><a href="{{ route('scope.policies') }}">Scope & Policies</a></div>
-                        <div class="col"><a href="{{ route('call.for.papers') }}">Call for Papers</a></div>
-                        <div class="col"><a href="{{ route('archives') }}">Archives</a></div>
-                        <div class="col"><a href="{{ route('issues.index') }}">Issues</a></div>
-                        <div class="col"><a href="#about">About</a></div>
-                        <div class="col"><a href="#contact">Contact</a></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </footer>
+    @include('layouts.footer')
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>

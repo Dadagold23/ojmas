@@ -67,6 +67,11 @@
         </div>
         @error('media')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
         @if(!empty($campaign->media_path))
+            @if($campaign->media_type === 'image')
+                <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($campaign->media_path) }}"
+                     alt="Current campaign media" class="rounded-2 border d-block mt-2"
+                     style="max-height: 140px; max-width: 100%; object-fit: cover;">
+            @endif
             <div class="small text-muted mt-1">Current file: {{ $campaign->media_path }} ({{ $campaign->media_type }})</div>
         @endif
     </div>

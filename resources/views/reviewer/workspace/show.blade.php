@@ -71,8 +71,9 @@
                 <div class="card-body p-4">
                     <h6 class="fw-bold mb-3"><i class="bi bi-chat-left-text me-2 text-primary"></i>Comments</h6>
                     <p class="text-muted small mb-2">
-                        Open the manuscript workspace to add contextual comments. Your comments are visible to
-                        the editorial team; mark them confidential if they should not reach the author.
+                        Open the manuscript workspace to read, edit and annotate the manuscript while your
+                        assignment is live. Your comments are visible to the editorial team; mark them
+                        confidential if they should not reach the author.
                     </p>
                     <a href="{{ route('workspace.show', $assignment->submission) }}" class="btn btn-outline-primary btn-sm">
                         Open the workspace

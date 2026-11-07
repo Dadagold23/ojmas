@@ -167,10 +167,17 @@ class Submission extends Model
             return 'Not yet staged';
         }
 
-        return $this->currentStage?->name ?? $this->current_stage;
+        return $this->stageRecord()?->name ?? $this->current_stage;
     }
 
-    public function currentStage()
+    /**
+     * The catalogue row for the current stage.
+     *
+     * Deliberately not named `currentStage()`: Laravel treats any method with
+     * that name as a relationship, so `$submission->currentStage` on a
+     * non-relation raises "must return a relationship instance".
+     */
+    public function stageRecord(): ?EditorialStage
     {
         return EditorialStage::where('slug', $this->current_stage)->first();
     }
@@ -245,6 +252,21 @@ class Submission extends Model
         return ReviewerAssignment::query()
             ->where('submission_id', $this->getKey())
             ->where('reviewer_id', $user->getKey())
+            ->exists();
+    }
+
+    /**
+     * True while the user's review assignment is still live.
+     *
+     * A reviewer who declined the invitation, or who already completed the
+     * review, may still read the manuscript but must not change it.
+     */
+    public function hasActiveReviewerAssignmentBy(User $user): bool
+    {
+        return ReviewerAssignment::query()
+            ->where('submission_id', $this->getKey())
+            ->where('reviewer_id', $user->getKey())
+            ->whereIn('status', ['assigned', 'accepted'])
             ->exists();
     }
 

@@ -114,6 +114,18 @@
                                                    value="{{ old('institution') }}" placeholder="e.g. University of Lagos" required>
                                             @error('institution')<div class="invalid-feedback">{{ $message }}</div>@enderror
                                         </div>
+                                        <div class="col-12">
+                                            <label class="form-label fw-semibold small d-flex align-items-center gap-2">
+                                                <x-orcid-icon :size="18" /> ORCID iD <span class="text-muted fw-normal">(optional)</span>
+                                            </label>
+                                            <input type="text" name="orcid" class="form-control @error('orcid') is-invalid @enderror"
+                                                   value="{{ old('orcid') }}" placeholder="0000-0002-1825-0097">
+                                            @error('orcid')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                            <div class="form-text">
+                                                This is saved for display only. After signing in, connect your ORCID iD from
+                                                your profile to mark it as verified.
+                                            </div>
+                                        </div>
                                     </div>
 
                                     {{-- Password --}}

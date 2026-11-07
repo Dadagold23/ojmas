@@ -7,6 +7,7 @@ use App\Http\Requests\SubmitReviewRequest;
 use App\Models\ReviewerAssignment;
 use App\Models\SubmissionStatusHistory;
 use App\Notifications\ReviewCompletedNotification;
+use App\Services\Review\ReviewService;
 
 class ReviewController extends Controller
 {
@@ -47,17 +48,16 @@ class ReviewController extends Controller
         return view('reviewer.assignments.show', compact('assignment'));
     }
 
-    public function submit(SubmitReviewRequest $request, ReviewerAssignment $assignment)
+    public function submit(SubmitReviewRequest $request, ReviewerAssignment $assignment, ReviewService $reviews)
     {
         abort_unless($assignment->reviewer_id === auth()->id(), 403);
         abort_unless($assignment->submission->hasPaidVettingFee(), 422, 'Vetting fee must be confirmed before reviews can proceed.');
 
-        if ($assignment->review) {
+        if ($assignment->submittedReview()->exists()) {
             return back()->with('error', 'Review already submitted.');
         }
 
-        $review = $assignment->review()->create($request->validated());
-        $assignment->update(['status' => 'completed']);
+        $review = $reviews->submit($assignment, $request->user(), $request->validated());
 
         SubmissionStatusHistory::create([
             'submission_id' => $assignment->submission_id,

@@ -130,7 +130,7 @@
                     <div class="card h-100 archive-card overflow-hidden">
                         @if($issue->cover_image_path)
                             <a href="{{ route('issue.show', $issue->id) }}">
-                                <img src="{{ \Illuminate\Support\Facades\Storage::url($issue->cover_image_path) }}"
+                                <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($issue->cover_image_path) }}"
                                      class="w-100" style="height: 220px; object-fit: cover;"
                                      alt="Cover of {{ $issue->title }}">
                             </a>
@@ -255,4 +255,8 @@
         </div>
     @endif
 </div>
+@endsection
+
+@section('footer')
+    @include('layouts.footer')
 @endsection
